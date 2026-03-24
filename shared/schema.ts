@@ -65,6 +65,7 @@ export const leads = pgTable("leads", {
   status: text("status").notNull().default("NEW"),
   assignedTo: text("assigned_to"),
   followUpDate: timestamp("follow_up_date"),
+  firstContactedAt: timestamp("first_contacted_at"),
   remarks: text("remarks"),
   createdBy: text("created_by"),
   createdAt: timestamp("created_at").defaultNow(),
