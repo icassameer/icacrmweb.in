@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useApi } from "@/hooks/use-api";
 import { useAuth } from "@/lib/auth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -6,12 +8,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Brain, Sparkles, MessageSquare, Bot, Copy, Check } from "lucide-react";
+import { Brain, Sparkles, MessageSquare, Bot, Copy, Check, Send, Users } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 export default function AIToolsPage() {
   const { token, user } = useAuth();
   const { toast } = useToast();
+  const { apiFetch } = useApi();
   const [copied, setCopied] = useState<string | null>(null);
 
   // Remark suggester state
@@ -34,6 +37,94 @@ export default function AIToolsPage() {
   const [chatAnswer, setChatAnswer] = useState("");
   const [chatLoading, setChatLoading] = useState(false);
   const [chatHistory, setChatHistory] = useState<{q: string, a: string}[]>([]);
+  // Bulk WhatsApp state
+  const [bulkRawMsg, setBulkRawMsg] = useState("");
+  const [bulkPolishedMsg, setBulkPolishedMsg] = useState("");
+  const [bulkPolishing, setBulkPolishing] = useState(false);
+  const [bulkSelectedLeads, setBulkSelectedLeads] = useState<string[]>([]);
+  const [bulkSending, setBulkSending] = useState(false);
+  const [bulkSentCount, setBulkSentCount] = useState(0);
+  const [bulkCurrentIdx, setBulkCurrentIdx] = useState(-1);
+  const [bulkStatusFilter, setBulkStatusFilter] = useState("ALL");
+
+  // Fetch agency leads for bulk WhatsApp
+  const { data: leadsData } = useQuery({
+    queryKey: ["/api/leads"],
+    queryFn: () => apiFetch("/api/leads?limit=50"),
+    enabled: user?.role === "AGENCY_ADMIN",
+  });
+  const agencyLeads = (leadsData?.leads || []).filter((l: any) =>
+    bulkStatusFilter === "ALL" ? true : l.status === bulkStatusFilter
+  );
+
+  const polishBulkMessage = async () => {
+    if (!bulkRawMsg.trim()) return;
+    setBulkPolishing(true);
+    setBulkPolishedMsg("");
+    try {
+      const res = await fetch("/api/ai/followup-message", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          leadName: "our valued customer",
+          service: "",
+          status: "FOLLOW_UP",
+          previousRemark: bulkRawMsg,
+          messageType: "whatsapp",
+        }),
+      });
+      const data = await res.json();
+      if (data.success) setBulkPolishedMsg(data.message);
+      else toast({ title: "Error", description: data.message, variant: "destructive" });
+    } catch {
+      toast({ title: "Error", description: "AI service unavailable", variant: "destructive" });
+    }
+    setBulkPolishing(false);
+  };
+
+  const startBulkSend = () => {
+    const msg = bulkPolishedMsg || bulkRawMsg;
+    if (!msg.trim()) { toast({ title: "Please enter a message first", variant: "destructive" }); return; }
+    if (bulkSelectedLeads.length === 0) { toast({ title: "Please select at least one lead", variant: "destructive" }); return; }
+    setBulkSending(true);
+    setBulkCurrentIdx(0);
+    setBulkSentCount(0);
+    const leads = agencyLeads.filter((l: any) => bulkSelectedLeads.includes(l.id));
+    const lead = leads[0];
+    const phone = lead.phone.replace(/\D/g, '');
+    const number = phone.startsWith('91') ? phone : '91' + phone;
+    const msg2 = bulkPolishedMsg || bulkRawMsg;
+    window.open(`https://wa.me/${number}?text=${encodeURIComponent(msg2)}`, '_blank');
+    setBulkSentCount(1);
+  };
+
+  const sendNextWhatsApp = () => {
+    const leads = agencyLeads.filter((l: any) => bulkSelectedLeads.includes(l.id));
+    const nextIdx = bulkCurrentIdx + 1;
+    if (nextIdx >= leads.length) {
+      setBulkSending(false);
+      setBulkCurrentIdx(-1);
+      toast({ title: "All done!", description: `Sent to ${leads.length} leads` });
+      return;
+    }
+    const lead = leads[nextIdx];
+    const phone = lead.phone.replace(/\D/g, '');
+    const number = phone.startsWith('91') ? phone : '91' + phone;
+    const msg = bulkPolishedMsg || bulkRawMsg;
+    window.open(`https://wa.me/${number}?text=${encodeURIComponent(msg)}`, '_blank');
+    setBulkCurrentIdx(nextIdx);
+    setBulkSentCount(nextIdx + 1);
+  };
+
+  const sendBulkWhatsApp = startBulkSend;
+
+  const toggleLead = (id: string) => {
+    setBulkSelectedLeads(prev =>
+      prev.includes(id)
+        ? prev.filter(x => x !== id)
+        : prev.length >= 50 ? prev : [...prev, id]
+    );
+  };
 
   const copyToClipboard = (text: string, id: string) => {
     navigator.clipboard.writeText(text);
@@ -293,6 +384,137 @@ export default function AIToolsPage() {
             </Button>
           </CardContent>
         </Card>
+
+
+        {/* Bulk WhatsApp — AGENCY_ADMIN only */}
+        {user?.role === "AGENCY_ADMIN" && (
+          <Card className="lg:col-span-2">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Send className="w-4 h-4 text-green-600" />
+                Bulk WhatsApp messenger
+                <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700 border border-green-200 font-medium">Max 50 leads</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                {/* Left — Message composer */}
+                <div className="space-y-3">
+                  <p className="text-xs text-muted-foreground font-medium">1. Type your rough message idea</p>
+                  <Textarea
+                    placeholder="e.g. Tell them about our new insurance offer, mention follow up next week..."
+                    value={bulkRawMsg}
+                    onChange={e => setBulkRawMsg(e.target.value)}
+                    rows={4}
+                  />
+                  <button
+                    onClick={polishBulkMessage}
+                    disabled={bulkPolishing || !bulkRawMsg.trim()}
+                    className="w-full py-2 text-sm rounded-md bg-violet-600 hover:bg-violet-700 text-white transition-colors disabled:opacity-50"
+                  >
+                    {bulkPolishing ? "Polishing..." : "✨ Polish with AI"}
+                  </button>
+                  {bulkPolishedMsg && (
+                    <div className="relative bg-muted rounded-md p-3 text-sm whitespace-pre-wrap">
+                      <p className="text-xs font-medium text-muted-foreground mb-2">AI polished message:</p>
+                      <p>{bulkPolishedMsg}</p>
+                      <button onClick={() => copyToClipboard(bulkPolishedMsg, "bulk")}
+                        className="absolute top-2 right-2 p-1 hover:bg-background rounded">
+                        {copied === "bulk" ? <Check className="w-3 h-3 text-green-500" /> : <Copy className="w-3 h-3 text-muted-foreground" />}
+                      </button>
+                    </div>
+                  )}
+                </div>
+                {/* Right — Lead selector */}
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2 mb-1">
+                    <p className="text-xs text-muted-foreground font-medium">Filter:</p>
+                    {["ALL","NEW","FOLLOW_UP","CONVERTED","NOT_INTERESTED"].map(s => (
+                      <button
+                        key={s}
+                        onClick={() => { setBulkStatusFilter(s); setBulkSelectedLeads([]); }}
+                        className={`text-xs px-2 py-1 rounded-full border transition-colors ${bulkStatusFilter === s ? "bg-green-600 text-white border-green-600" : "bg-background text-muted-foreground hover:border-foreground"}`}
+                      >
+                        {s === "ALL" ? "All" : s === "FOLLOW_UP" ? "Follow Up" : s === "NOT_INTERESTED" ? "Not Interested" : s.charAt(0) + s.slice(1).toLowerCase()}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs text-muted-foreground font-medium">2. Select leads ({bulkSelectedLeads.length}/50) {bulkStatusFilter !== "ALL" ? `— ${bulkStatusFilter.replace("_"," ")}` : ""}</p>
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={() => setBulkSelectedLeads(agencyLeads.slice(0, 50).map((l: any) => l.id))}
+                        className="text-xs text-blue-600 hover:text-blue-700 font-medium"
+                      >
+                        Select all
+                      </button>
+                      {bulkSelectedLeads.length > 0 && (
+                        <button onClick={() => setBulkSelectedLeads([])} className="text-xs text-muted-foreground hover:text-foreground">Clear</button>
+                      )}
+                    </div>
+                  </div>
+                  <div className="border rounded-md max-h-48 overflow-y-auto divide-y">
+                    {agencyLeads.length === 0 ? (
+                      <p className="text-xs text-muted-foreground text-center py-6">No leads found</p>
+                    ) : agencyLeads.map((lead: any) => (
+                      <div
+                        key={lead.id}
+                        onClick={() => toggleLead(lead.id)}
+                        className={`flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-muted/50 transition-colors ${bulkSelectedLeads.includes(lead.id) ? "bg-green-50 dark:bg-green-950/20" : ""}`}
+                      >
+                        <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${bulkSelectedLeads.includes(lead.id) ? "bg-green-600 border-green-600" : "border-muted-foreground"}`}>
+                          {bulkSelectedLeads.includes(lead.id) && <Check className="w-2.5 h-2.5 text-white" />}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-medium truncate">{lead.name}</p>
+                          <p className="text-xs text-muted-foreground">{lead.phone}</p>
+                        </div>
+                        <span className="text-xs text-muted-foreground shrink-0">{lead.status?.replace("_", " ")}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              {/* Send button */}
+              <div className="flex items-center gap-4 pt-2 border-t flex-wrap">
+                {!bulkSending ? (
+                  <button
+                    onClick={startBulkSend}
+                    disabled={bulkSelectedLeads.length === 0 || (!bulkRawMsg && !bulkPolishedMsg)}
+                    className="flex items-center gap-2 px-6 py-2.5 rounded-md bg-green-600 hover:bg-green-700 text-white text-sm font-medium transition-colors disabled:opacity-50"
+                  >
+                    <Send className="w-4 h-4" />
+                    Start — Send to {bulkSelectedLeads.length} leads
+                  </button>
+                ) : (
+                  <div className="flex items-center gap-3 flex-wrap">
+                    <div className="text-sm font-medium text-green-700">
+                      {bulkSentCount}/{bulkSelectedLeads.length} opened
+                    </div>
+                    <button
+                      onClick={sendNextWhatsApp}
+                      className="flex items-center gap-2 px-6 py-2.5 rounded-md bg-green-600 hover:bg-green-700 text-white text-sm font-medium transition-colors"
+                    >
+                      <Send className="w-4 h-4" />
+                      {bulkCurrentIdx + 1 >= bulkSelectedLeads.length ? "Done ✓" : `Next Contact →`}
+                    </button>
+                    <button
+                      onClick={() => { setBulkSending(false); setBulkCurrentIdx(-1); }}
+                      className="px-4 py-2.5 rounded-md border text-sm text-muted-foreground hover:bg-muted transition-colors"
+                    >
+                      Stop
+                    </button>
+                  </div>
+                )}
+                <p className="text-xs text-muted-foreground">
+                  {bulkSending
+                    ? `WhatsApp opened for contact ${bulkSentCount}. Send the message, then click Next Contact.`
+                    : "WhatsApp opens one at a time. Click send in each window, then press Next Contact."}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
       </div>
     </div>
