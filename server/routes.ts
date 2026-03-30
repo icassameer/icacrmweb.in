@@ -2028,7 +2028,7 @@ app.post("/api/ai/suggest-remark", authMiddleware, roleMiddleware("TELE_CALLER",
       return res.status(403).json({ success: false, message: "AI features require PRO or ENTERPRISE plan" });
     }
 
-    const { leadName, phone, service, status, previousRemark } = req.body;
+    const { leadName, phone, service, status, previousRemark, polishMode } = req.body;
     if (!leadName || !status) return res.status(400).json({ success: false, message: "Lead name and status required" });
 
     const businessContext = [
@@ -2041,15 +2041,9 @@ app.post("/api/ai/suggest-remark", authMiddleware, roleMiddleware("TELE_CALLER",
       max_tokens: 200,
       messages: [{
         role: "user",
-        content: `You are a CRM assistant for an Indian insurance/financial services agency. Write a short, professional call remark in English (2-3 sentences max) for a telecaller to log after a call.
-
-${businessContext ? `Agency context:\n${businessContext}\n` : ""}Lead details:
-- Name: ${leadName}
-- Service interested in: ${service || "General inquiry"}
-- Call outcome: ${status}
-- Previous remark: ${previousRemark || "None"}
-
-Write only the remark text, nothing else. Keep it factual, professional, and specific to the outcome. Use Indian business context relevant to the agency's focus area.`
+        content: polishMode && previousRemark
+          ? `You are a CRM assistant. Polish this remark to be professional and match the outcome. Status: ${status} (CONVERTED = sale done, confirmed language only). Fix grammar/clarity. 2-3 sentences max.\nRemark: "${previousRemark}"`
+          : `You are a CRM assistant for an Indian insurance/financial services agency. Write a short, professional call remark in English (2-3 sentences max) for a telecaller to log after a call.\n${businessContext ? `Agency context:\n${businessContext}\n` : ""}Lead details:\n- Name: ${leadName}\n- Service interested in: ${service || "General inquiry"}\n- Call outcome: ${status}\n- Previous remark: ${previousRemark || "None"}\nWrite only the remark text, nothing else. Keep it factual, professional, and specific to the outcome.`
       }]
     });
 
