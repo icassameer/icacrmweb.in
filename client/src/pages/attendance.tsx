@@ -5,15 +5,16 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { MapPin, Clock, LogIn, LogOut, Users, CheckCircle, XCircle, Calendar } from "lucide-react";
+import { MapPin, Clock, LogIn, LogOut, Users, CheckCircle, XCircle, Calendar, Navigation, Settings } from "lucide-react";
 import { useApi } from "@/hooks/use-api";
 
 function formatTime(ts: string | null) {
   if (!ts) return "--";
   return new Date(ts).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true });
 }
-
 function formatDate(d: string) {
   return new Date(d).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
 }
@@ -24,6 +25,11 @@ export default function AttendancePage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [loading, setLoading] = useState(false);
+  const [locationLoading, setLocationLoading] = useState(false);
+  const [savingLocation, setSavingLocation] = useState(false);
+  const [officeLat, setOfficeLat] = useState("");
+  const [officeLng, setOfficeLng] = useState("");
+  const [officeRadius, setOfficeRadius] = useState("100");
   const role = user?.role;
   const today = new Date().toISOString().split("T")[0];
 
@@ -36,6 +42,17 @@ export default function AttendancePage() {
   const { data: allRecords, isLoading: listLoading } = useQuery({
     queryKey: ["/api/attendance"],
     queryFn: () => apiFetch("/api/attendance"),
+  });
+
+  const { data: commissionSettings } = useQuery({
+    queryKey: ["/api/agency/commission-settings"],
+    queryFn: () => apiFetch("/api/agency/commission-settings"),
+    enabled: role === "AGENCY_ADMIN",
+    onSuccess: (data: any) => {
+      if (data?.officeLatitude) setOfficeLat(data.officeLatitude);
+      if (data?.officeLongitude) setOfficeLng(data.officeLongitude);
+      if (data?.officeRadiusMeters) setOfficeRadius(String(data.officeRadiusMeters));
+    }
   });
 
   const handlePunch = async (type: "in" | "out") => {
@@ -66,19 +83,137 @@ export default function AttendancePage() {
     }
   };
 
+  const handleUseMyLocation = async () => {
+    setLocationLoading(true);
+    try {
+      const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 10000 });
+      });
+      setOfficeLat(String(pos.coords.latitude));
+      setOfficeLng(String(pos.coords.longitude));
+      toast({ title: "Location captured!", description: "Your current location has been filled in. Set radius and save." });
+    } catch (err: any) {
+      toast({ title: "Location Error", description: "Please allow location access in browser.", variant: "destructive" });
+    } finally {
+      setLocationLoading(false);
+    }
+  };
+
+  const handleSaveLocation = async () => {
+    if (!officeLat || !officeLng) {
+      toast({ title: "Error", description: "Please enter or capture office location first.", variant: "destructive" });
+      return;
+    }
+    setSavingLocation(true);
+    try {
+      const res = await fetch("/api/agency/office-location", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          officeLatitude: officeLat,
+          officeLongitude: officeLng,
+          officeRadiusMeters: Number(officeRadius) || 100,
+        }),
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.message);
+      queryClient.invalidateQueries({ queryKey: ["/api/agency/commission-settings"] });
+      toast({ title: "Office location saved!", description: `Radius: ${officeRadius}m — Telecallers must be within this range to punch in.` });
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    } finally {
+      setSavingLocation(false);
+    }
+  };
+
   const isPunchedIn = !!todayRecord?.punchInAt;
   const isPunchedOut = !!todayRecord?.punchOutAt;
+  const hasOfficeLocation = commissionSettings?.officeLatitude && commissionSettings?.officeLongitude;
 
   return (
     <div className="p-3 sm:p-6 space-y-4 sm:space-y-6 max-w-7xl mx-auto">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Attendance</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          {role === "TELE_CALLER" ? "Track your daily attendance" : "View team attendance records"}
+          {role === "TELE_CALLER" ? "Track your daily attendance" : "Manage office location and view team attendance"}
         </p>
       </div>
 
-      {/* Punch In/Out Card — all roles */}
+      {/* Office Location Settings — Agency Admin only */}
+      {role === "AGENCY_ADMIN" && (
+        <Card className={!hasOfficeLocation ? "border-amber-200 bg-amber-50/30" : ""}>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <Settings className="w-4 h-4 text-primary" />
+              Office Location Settings
+              {hasOfficeLocation ? (
+                <Badge variant="outline" className="text-green-600 border-green-200 bg-green-50 text-xs ml-2">
+                  <CheckCircle className="w-3 h-3 mr-1" />Set
+                </Badge>
+              ) : (
+                <Badge variant="outline" className="text-amber-600 border-amber-200 bg-amber-50 text-xs ml-2">
+                  Not Set
+                </Badge>
+              )}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {!hasOfficeLocation && (
+              <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-2">
+                ⚠️ Office location not set. Telecallers can punch in from anywhere until you set the office location.
+              </p>
+            )}
+            {hasOfficeLocation && (
+              <p className="text-xs text-green-700 bg-green-50 border border-green-200 rounded px-3 py-2">
+                ✅ Office: {parseFloat(commissionSettings.officeLatitude).toFixed(4)}, {parseFloat(commissionSettings.officeLongitude).toFixed(4)} — Radius: {commissionSettings.officeRadiusMeters}m
+              </p>
+            )}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="space-y-1">
+                <Label className="text-xs">Latitude</Label>
+                <Input
+                  placeholder="e.g. 17.6868"
+                  value={officeLat}
+                  onChange={(e) => setOfficeLat(e.target.value)}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Longitude</Label>
+                <Input
+                  placeholder="e.g. 75.9064"
+                  value={officeLng}
+                  onChange={(e) => setOfficeLng(e.target.value)}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Allowed Radius (meters)</Label>
+                <Input
+                  type="number"
+                  min="10"
+                  max="5000"
+                  value={officeRadius}
+                  onChange={(e) => setOfficeRadius(e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="flex gap-3 flex-wrap">
+              <Button variant="outline" onClick={handleUseMyLocation} disabled={locationLoading}>
+                <Navigation className="w-4 h-4 mr-2" />
+                {locationLoading ? "Getting Location..." : "Use My Current Location"}
+              </Button>
+              <Button onClick={handleSaveLocation} disabled={savingLocation || !officeLat || !officeLng}>
+                <MapPin className="w-4 h-4 mr-2" />
+                {savingLocation ? "Saving..." : "Save Office Location"}
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Tip: Open this page from your office and click "Use My Current Location" for accurate coordinates.
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Punch In/Out Card */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <Card>
           <CardHeader className="pb-2">
@@ -131,7 +266,7 @@ export default function AttendancePage() {
           </CardContent>
         </Card>
 
-        {/* Today stats for TL/Admin */}
+        {/* Team Today stats — TL + Admin */}
         {(role === "TEAM_LEADER" || role === "AGENCY_ADMIN") && (
           <Card>
             <CardHeader className="pb-2">
@@ -145,12 +280,11 @@ export default function AttendancePage() {
                 <div className="space-y-2">
                   {(() => {
                     const todayList = (allRecords || []).filter((r: any) => r.date === today);
-                    const present = todayList.filter((r: any) => r.punchInAt).length;
                     return (
                       <>
                         <div className="flex justify-between items-center">
                           <span className="text-sm text-muted-foreground">Present Today</span>
-                          <Badge variant="outline" className="text-green-600 border-green-200 bg-green-50">{present}</Badge>
+                          <Badge variant="outline" className="text-green-600 border-green-200 bg-green-50">{todayList.filter((r: any) => r.punchInAt).length}</Badge>
                         </div>
                         <div className="flex justify-between items-center">
                           <span className="text-sm text-muted-foreground">Punched Out</span>
