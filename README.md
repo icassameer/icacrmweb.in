@@ -86,7 +86,7 @@ ADDON_WEBHOOK_SECRET=<addon webhook secret from Razorpay>
 | MASTER_ADMIN | Full system — all agencies, users, plans, upgrade approvals, subscription management, payment history, activate subscriptions, send prospect emails |
 | AGENCY_ADMIN | Own agency — leads, users, AI Proceeding, RC lookup, reports, plan upgrades, AI Tools (PRO+), addon credits, office location settings, commission settings, attendance |
 | TEAM_LEADER | Add leads, bulk upload, assign leads to telecallers, view team performance, AI Tools (PRO+), view team attendance & commissions |
-| TELE_CALLER | Own assigned leads only — update status, remarks, WhatsApp, inline AI (PRO+), punch in/out attendance, view own commissions |
+| TELE_CALLER | Own assigned leads (default filter: NEW) — update status, remarks, Polish with AI, WhatsApp, inline AI (PRO+), punch in/out attendance, view own commissions |
 
 > TEAM_LEADER is the **only** role that can assign leads to telecallers.
 
@@ -101,21 +101,12 @@ ADDON_WEBHOOK_SECRET=<addon webhook secret from Razorpay>
 | AI Proceeding | ❌ | 15/month | 40/month |
 | RC Lookup | ❌ | 50/month | 200/month |
 | AI Tools (Remarks + Follow-up + Scoring) | ❌ | ✅ | ✅ |
-| Inline AI on Lead Cards | ❌ | ✅ | ✅ |
+| Inline AI + Polish with AI | ❌ | ✅ | ✅ |
 | AI Chatbot | ❌ | ❌ | ✅ |
 | Attendance & Commission | ✅ | ✅ | ✅ |
 | WhatsApp | ✅ | ✅ | ✅ |
 | Automated Emails | ✅ | ✅ | ✅ |
 | Subscription | 30 days/payment | 30 days/payment | 30 days/payment |
-
-### Add-on Packs (Live on icaweb.in)
-
-| Pack | Credits | Price |
-|------|---------|-------|
-| RC Small | 10 RC Lookups | ₹99 |
-| RC Large | 25 RC Lookups | ₹199 |
-| AI Small | 5 AI Proceedings | ₹199 |
-| AI Large | 15 AI Proceedings | ₹499 |
 
 ---
 
@@ -126,114 +117,80 @@ ADDON_WEBHOOK_SECRET=<addon webhook secret from Razorpay>
 | Multi-role auth (JWT) | ✅ | 4 roles |
 | Lead management | ✅ | CRUD + bulk upload |
 | WhatsApp click-to-chat | ✅ | |
-| AI Proceeding | ✅ | GPT-4o + Whisper background processing |
-| Multilingual transcription | ✅ | Hindi/Marathi/English |
+| AI Proceeding | ✅ | GPT-4o + Whisper |
 | RC Lookup UI | ✅ | API key pending |
-| Plan limits enforcement | ✅ | Leads, users, AI, RC per plan |
+| Plan limits enforcement | ✅ | |
 | Performance reports | ✅ | |
 | Audit logs | ✅ | |
-| VPS deployment | ✅ | HostBet Micro |
-| Nginx + SSL | ✅ | crm.icaweb.in + icaweb.in |
-| Resend email integration | ✅ | All transactional emails |
-| Marketing website | ✅ | icaweb.in |
-| Razorpay live payments | ✅ | Website + CRM |
-| Subscription expiry system | ✅ | 30-day cycle, auto-expire |
-| Subscription renewal banner | ✅ | Shows in CRM at ≤7 days/expired/trial |
-| Razorpay webhook auto-activate | ✅ | Payment → expiry +30 days |
-| Daily subscription cron | ✅ | PM2 fork — single instance |
-| Payment History page | ✅ | MASTER_ADMIN — paginated (20/page) |
-| AI Smart Remark Suggestions | ✅ | Claude Haiku — PRO + ENTERPRISE |
-| AI Follow-up Message Generator | ✅ | Claude Haiku — WhatsApp + Call script |
-| AI Lead Scoring | ✅ | Claude Haiku — 1-100 score + Hot/Warm/Cold |
-| AI CRM Chatbot | ✅ | Claude Sonnet — ENTERPRISE only |
-| Add-on packs checkout | ✅ | RC + AI top-ups on icaweb.in with Razorpay |
+| Subscription expiry system | ✅ | 30-day cycle |
+| Razorpay live payments | ✅ | |
+| Daily subscription cron | ✅ | PM2 fork |
+| AI Smart Remarks | ✅ | Claude Haiku — PRO+ |
+| AI Follow-up Generator | ✅ | Claude Haiku — PRO+ |
+| AI Lead Scoring | ✅ | Claude Haiku — PRO+ |
+| AI CRM Chatbot | ✅ | Claude Sonnet — ENTERPRISE |
+| Add-on packs | ✅ | RC + AI top-ups |
 | Agency Business Profile | ✅ | Injected into all 4 AI tools |
-| AI Suggest Remark in Update dialog | ✅ | PRO/ENT only |
-| Bulk WhatsApp Messenger | ✅ | AI Tools — AGENCY_ADMIN, 50 leads |
+| Bulk WhatsApp Messenger | ✅ | AGENCY_ADMIN, 50 leads |
 | Mobile responsive all pages | ✅ | p-3 sm:p-6 pattern |
-| PM2 fork mode | ✅ | Single instance — saves ~63MB RAM |
-| Website contact form | ✅ | POST /api/contact → email via Resend |
-| Tawk.to live chat | ✅ | icaweb.in widget ID: 69c62f46bf40c71c359f3fc9 |
-| APLM white-label CRM | ✅ | crm.aplmsales.com — separate DB, PM2, branding |
-| **Telecaller Attendance** | ✅ | GPS punch in/out, radius check, office location settings |
-| **Commission System** | ✅ | Per service or agency default, triggered on CONVERTED |
-| **Service Commission** | ✅ | Per-service commission amount in Services page |
-| **Office Location Settings** | ✅ | Agency Admin sets GPS + radius on Attendance page |
+| PM2 fork mode | ✅ | Single instance |
+| Website contact form | ✅ | POST /api/contact |
+| Tawk.to live chat | ✅ | icaweb.in |
+| APLM white-label CRM | ✅ | crm.aplmsales.com LIVE |
+| **Telecaller Attendance** | ✅ | GPS punch in/out, radius check |
+| **Office Location Settings** | ✅ | Admin sets GPS + radius on Attendance page |
+| **Commission System** | ✅ | Auto-triggered on CONVERTED, per service or agency default |
+| **Service Commission** | ✅ | Per-service amount saved on Add Service |
+| **Polish with AI** | ✅ | Telecaller types remark → AI polishes it |
+| **Remarks line-clamp** | ✅ | Long remarks wrap to 2 lines on lead cards |
+| **Telecaller default filter** | ✅ | Leads page shows NEW by default for telecaller |
 
 ---
 
-## 🆕 v9.4 Features (COMPLETE)
+## 🆕 v9.4 — Complete Feature Summary
 
 ### Telecaller Attendance
-- GPS-based punch in/out via mobile browser
-- Agency Admin sets office GPS + radius on Attendance page
-- "Use My Current Location" button for easy setup
-- Telecaller blocked from punch-in if outside radius
+- GPS punch in/out via mobile browser
+- Agency Admin sets office GPS + radius (one-time setup)
+- "Use My Current Location" button on Attendance page
+- Telecaller blocked if outside office radius
 - Warning shown if office location not set
-- Separate view per role: Telecaller (own) → TL (team) → Admin (all)
-- Team Today stats: Present / Punched Out / Still Working
+- Role views: Telecaller (own) → TL (team) → Admin (all + settings)
 
 ### Commission System
-- Triggered automatically when lead status → CONVERTED
-- Per-service commission set on Services page
-- Agency default commission set on Commission page
-- Commission logic: service amount → fallback to agency default
-- Full history table per role
+- Auto-triggered when lead → CONVERTED
+- Service commission checked first → fallback to agency default
+- Full history per role with PENDING/PAID status
 - Agency Admin can mark commissions as PAID
-- Summary cards: Total Earned / Pending / Paid Out
+- Summary: Total Earned / Pending / Paid Out
 
-### New API Endpoints (v9.4)
-```
-POST  /api/attendance/punch-in         → GPS punch in (radius check)
-POST  /api/attendance/punch-out        → GPS punch out
-GET   /api/attendance/today            → Today's record
-GET   /api/attendance                  → List (role-based)
-PATCH /api/agency/office-location      → Set office GPS + radius + default commission
-GET   /api/agency/commission-settings  → Get agency commission + location settings
-GET   /api/commissions                 → List (role-based)
-PATCH /api/commissions/:id/paid        → Mark commission paid (AGENCY_ADMIN)
-PATCH /api/services/:id                → Update service commission amount
-```
+### Polish with AI
+- Telecaller types their own remark in Update Lead dialog
+- Clicks "✨ Polish with AI" — AI improves grammar, tone, clarity
+- Telecaller reviews and clicks "Use" to apply
+- Works on PRO + ENTERPRISE plans
 
-### Commission Logic
-```
-Lead → CONVERTED
-  → Check lead.service → find service.commission_amount
-  → If > 0: use service commission
-  → If = 0: use agency.commission_per_lead
-  → Insert into commissions table (paidStatus: PENDING)
-```
-
-### New DB Tables
-```sql
-attendance  — id, agency_code, user_id, date, punch_in_at, punch_in_lat,
-              punch_in_lng, punch_out_at, punch_out_lat, punch_out_lng, status
-commissions — id, agency_code, user_id, lead_id, amount, paid_status,
-              converted_at, paid_at
-```
-
-### New DB Columns
-```sql
-agencies.commission_per_lead     — Default ₹ per converted lead
-agencies.office_latitude         — Office GPS latitude
-agencies.office_longitude        — Office GPS longitude
-agencies.office_radius_meters    — Punch-in allowed radius (default 100m)
-services.commission_amount       — ₹ per converted lead for this service
-```
+### Other Fixes
+- Remarks on lead cards: `line-clamp-2` — wraps to 2 lines, Update button always visible
+- Telecaller leads page: default filter = NEW (not ALL)
+- Service commission saved correctly when adding new service
+- Commission trigger fires correctly on CONVERTED status change
 
 ---
 
-## 🚀 Agency Onboarding — Complete Flow
+## 🚀 Agency Onboarding Flow
 
 ```
-Step 1 — Create Agency (MASTER_ADMIN → Agencies → Create Agency)
-Step 2 — Add Admin (Agencies → Add Admin button)
-Step 3 — Activate Subscription (Agencies → Activate button)
-Step 4 — Share Credentials via WhatsApp
-Step 5 — Agency Sets Up Team (TL + Telecallers)
-Step 6 — Agency Admin sets office location (Attendance page)
-Step 7 — Agency Admin sets commission per service (Services page)
-Step 8 — Telecallers start punching in/out daily
+Step 1 — MASTER_ADMIN creates agency + admin
+Step 2 — Activate subscription
+Step 3 — Share credentials
+Step 4 — Agency Admin sets office location (Attendance page — one time)
+Step 5 — Agency Admin sets commission per service (Services page)
+Step 6 — Agency Admin sets default commission (Commission page)
+Step 7 — Team Leader adds leads → assigns to telecallers
+Step 8 — Telecallers punch in daily → call leads → update status
+Step 9 — On CONVERTED → commission auto-created
+Step 10 — Agency Admin marks commission as PAID when paying telecaller
 ```
 
 ---
@@ -247,8 +204,19 @@ Step 8 — Telecallers start punching in/out daily
 | **Working Dir** | /var/www/aplm-crm |
 | **PM2** | id 8, port 5001, fork mode |
 | **Database** | aplm_crm (separate) |
-| **Agency Admin** | Ram_mane (Parshuram Mane) — APLM-001 |
-| **Deploy** | `cd /var/www/aplm-crm && git pull origin master && npm run build && pm2 restart aplm-crm` |
+| **Agency Admin** | Ram_mane (Parshuram Mane) — APLM-001 — ENTERPRISE |
+| **Deploy cmd** | `cd /var/www/aplm-crm && git pull origin master && npm run build && pm2 restart aplm-crm` |
+
+### Syncing ICA → APLM (after changes)
+```bash
+# Copy changed files
+cp /var/www/ica-crm/server/storage.ts /var/www/aplm-crm/server/storage.ts
+cp /var/www/ica-crm/server/routes.ts /var/www/aplm-crm/server/routes.ts
+cp /var/www/ica-crm/client/src/pages/leads.tsx /var/www/aplm-crm/client/src/pages/leads.tsx
+# Fix APLM sidebar branding after copying app-sidebar.tsx
+# Build + restart
+cd /var/www/aplm-crm && npm run build && pm2 restart aplm-crm
+```
 
 ---
 
@@ -264,19 +232,12 @@ pm2 logs ica-crm --lines 50
 # Deploy ICA CRM
 git pull origin master && npm run build && pm2 restart ica-crm
 
-# Deploy APLM CRM (after ICA CRM is tested)
-cd /var/www/aplm-crm && git pull origin master && npm run build && pm2 restart aplm-crm
-
 # If .env changed
 pm2 restart ica-crm --update-env
 
-# DB
+# DB checks
 psql -U postgres -h localhost -d ica_crm
-
-# Check attendance
 psql -U postgres -h localhost -d ica_crm -c "SELECT * FROM attendance ORDER BY created_at DESC LIMIT 10;"
-
-# Check commissions
 psql -U postgres -h localhost -d ica_crm -c "SELECT * FROM commissions ORDER BY created_at DESC LIMIT 10;"
 
 # Git tags
@@ -291,17 +252,15 @@ git tag -a vX.X -m "Description" && git push origin vX.X
 |------|------|
 | Backend entry + cron | server/index.ts |
 | Backend routes | server/routes.ts |
-| Email functions | server/email.ts |
-| DB schema | shared/schema.ts |
 | Storage layer | server/storage.ts |
+| DB schema | shared/schema.ts |
 | Login page | client/src/pages/login.tsx |
+| Leads page | client/src/pages/leads.tsx |
 | Attendance page | client/src/pages/attendance.tsx |
 | Commission page | client/src/pages/commission.tsx |
 | Services page | client/src/pages/services.tsx |
-| Leads page | client/src/pages/leads.tsx |
-| AI Tools page | client/src/pages/ai-tools.tsx |
-| Performance page | client/src/pages/performance.tsx |
 | Sidebar nav | client/src/components/app-sidebar.tsx |
+| App routes | client/src/App.tsx |
 | Nginx (CRM) | /etc/nginx/sites-enabled/ica-crm |
 | Marketing website | /var/www/icaweb-in/index.html |
 
@@ -313,12 +272,13 @@ git tag -a vX.X -m "Description" && git push origin vX.X
 |---------|---------|
 | Site not loading | `pm2 restart ica-crm --update-env` |
 | 502 Bad Gateway | `curl http://localhost:5000/api/auth/me` — rebuild if fails |
-| Build failed | `npm run build 2>&1 \| grep ERROR` |
 | Punch-in blocked | Check office location set by Agency Admin |
 | GPS not working | Allow location in browser settings |
-| Commission not created | Check lead has assignedTo + service set |
+| Commission not created | Check lead has assignedTo + CONVERTED status |
+| Commission 0 | Old leads — only new CONVERTED leads trigger commission |
 | Browser showing old UI | Hard refresh Ctrl+Shift+R or Incognito |
 | SSL expired | `certbot renew && systemctl reload nginx` |
+| APLM sidebar shows ICA | Re-apply branding after copying app-sidebar.tsx |
 
 ---
 
@@ -326,11 +286,10 @@ git tag -a vX.X -m "Description" && git push origin vX.X
 
 | Tag | Date | Description |
 |-----|------|-------------|
-| `v9.4` | Mar 30, 2026 | Attendance GPS punch in/out, commission system, service commission, office location settings — fully complete |
-| `v9.3` | Mar 28, 2026 | Mobile responsive, PM2 fork, website contact form, Tawk.to, APLM white-label launched |
+| `v9.4` | Mar 30, 2026 | Attendance GPS, commission system, service commission, office location, Polish with AI, remarks wrap, telecaller default filter NEW |
+| `v9.3` | Mar 28, 2026 | Mobile responsive, PM2 fork, website contact form, Tawk.to, APLM white-label |
 | `v9.2` | Mar 25, 2026 | AI Suggest remark, Bulk WhatsApp, In Progress stat, Follow Up sort |
 | `v9.1` | Mar 21, 2026 | Agency Business Profile |
-| `v8.9` | Mar 21, 2026 | Prospect email UI, email audit, scoring v2, performance page |
 | `v8.0` | Mar 18, 2026 | AI Suite — 4 features + Payment History |
 | `v7.0` | Mar 18, 2026 | Daily subscription cron |
 | `v6.0` | Mar 17, 2026 | Subscription system + Razorpay webhook |
@@ -341,11 +300,10 @@ git tag -a vX.X -m "Description" && git push origin vX.X
 
 | Task | Priority |
 |------|----------|
-| Deploy v9.4 to APLM CRM | 🔴 High |
+| Build aplmsales.com marketing website | 🔴 High |
 | RC API key (Surepass) — ₹25k deposit | 🔴 High |
-| Build aplmsales.com website (waiting for content) | 🟡 Medium |
-| Auto-reply support@icaweb.in (ImprovMX) | 🟡 Medium |
 | Verify aplmsales.com domain in Resend | 🟡 Medium |
+| Auto-reply support@icaweb.in (ImprovMX) | 🟡 Medium |
 
 ---
 
@@ -353,13 +311,13 @@ git tag -a vX.X -m "Description" && git push origin vX.X
 
 | Version | Date | Changes |
 |---------|------|---------|
-| v9.4 | Mar 30, 2026 | Telecaller GPS attendance (punch in/out, office location settings, radius check). Commission system (per service or agency default, triggered on CONVERTED, mark as paid). Service commission amount field. Office Location Settings card on Attendance page with Use My Current Location button. All 3 roles have Attendance + Commission in sidebar. |
-| v9.3 | Mar 28, 2026 | Mobile responsive all pages, PM2 fork mode, website contact form, Tawk.to live chat, ICA Team sender, APLM white-label CRM launched at crm.aplmsales.com. |
-| v9.2 | Mar 25, 2026 | AI Suggest remark in Update dialog, Bulk WhatsApp, In Progress stat card, Follow Up sort, firstContactedAt. |
-| v9.1 | Mar 21, 2026 | Agency Business Profile — injected into all 4 AI tools. |
+| v9.4 | Mar 30, 2026 | GPS attendance (punch in/out, office location, radius check). Commission system (per service + agency default, auto-trigger on CONVERTED, mark as PAID). Polish with AI (replaces AI Suggest — telecaller types remark, AI polishes). Remarks line-clamp-2 on lead cards. Telecaller default leads filter = NEW. Service commission saved on Add Service. APLM CRM launched + all v9.4 features deployed. |
+| v9.3 | Mar 28, 2026 | Mobile responsive, PM2 fork, website contact form, Tawk.to, APLM white-label launched. |
+| v9.2 | Mar 25, 2026 | AI Suggest remark, Bulk WhatsApp, In Progress stat, Follow Up sort, firstContactedAt. |
+| v9.1 | Mar 21, 2026 | Agency Business Profile. |
 | v8.0 | Mar 18, 2026 | AI Suite — Smart Remarks, Follow-up, Lead Scoring, CRM Chatbot. |
 | v7.0 | Mar 18, 2026 | Daily subscription cron. |
-| v6.0 | Mar 17, 2026 | Subscription expiry system, 30-day billing, Razorpay webhook. |
+| v6.0 | Mar 17, 2026 | Subscription system, 30-day billing, Razorpay webhook. |
 | v1.0 | Jan 2026 | Initial release — lead management, 4 roles, JWT auth. |
 
 ---
