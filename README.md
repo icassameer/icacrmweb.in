@@ -53,6 +53,7 @@ NODE_ENV=production
 ALLOWED_ORIGINS=https://crm.icaweb.in,https://icaweb.in,https://www.icaweb.in
 RESEND_API_KEY=<active — domain icaweb.in verified>
 FROM_EMAIL=support@icaweb.in
+FROM_NAME=ICA Team
 RC_API_KEY=<pending — Surepass>
 RAZORPAY_KEY_ID=<live key>
 RAZORPAY_KEY_SECRET=<live secret>
@@ -83,9 +84,9 @@ ADDON_WEBHOOK_SECRET=<addon webhook secret from Razorpay>
 | Role | Access |
 |------|--------|
 | MASTER_ADMIN | Full system — all agencies, users, plans, upgrade approvals, subscription management, payment history, activate subscriptions, send prospect emails |
-| AGENCY_ADMIN | Own agency — leads, users, AI Proceeding, RC lookup, reports, plan upgrades, AI Tools (PRO+), addon credits |
-| TEAM_LEADER | Add leads, bulk upload, assign leads to telecallers (select all on page), view team performance, AI Tools (PRO+) |
-| TELE_CALLER | Own assigned leads only — update status, remarks, WhatsApp, inline AI buttons (PRO+) |
+| AGENCY_ADMIN | Own agency — leads, users, AI Proceeding, RC lookup, reports, plan upgrades, AI Tools (PRO+), addon credits, office location settings, commission settings |
+| TEAM_LEADER | Add leads, bulk upload, assign leads to telecallers (select all on page), view team performance, AI Tools (PRO+), view team attendance & commissions |
+| TELE_CALLER | Own assigned leads only — update status, remarks, WhatsApp, inline AI buttons (PRO+), punch in/out attendance, view own commissions |
 
 > TEAM_LEADER is the **only** role that can assign leads to telecallers.
 
@@ -102,6 +103,7 @@ ADDON_WEBHOOK_SECRET=<addon webhook secret from Razorpay>
 | AI Tools (Remarks + Follow-up + Scoring) | ❌ | ✅ | ✅ |
 | Inline AI on Lead Cards | ❌ | ✅ | ✅ |
 | AI Chatbot | ❌ | ❌ | ✅ |
+| Attendance & Commission | ✅ | ✅ | ✅ |
 | WhatsApp | ✅ | ✅ | ✅ |
 | Automated Emails | ✅ | ✅ | ✅ |
 | Subscription | 30 days/payment | 30 days/payment | 30 days/payment |
@@ -130,7 +132,7 @@ ADDON_WEBHOOK_SECRET=<addon webhook secret from Razorpay>
 | Plan limits enforcement | ✅ | Leads, users, AI, RC per plan |
 | Performance reports | ✅ | |
 | Audit logs | ✅ | |
-| DB-backed job processing | ✅ | PM2 cluster safe |
+| DB-backed job processing | ✅ | PM2 fork safe |
 | VPS deployment | ✅ | HostBet Micro |
 | Nginx + SSL | ✅ | crm.icaweb.in + icaweb.in |
 | Resend email integration | ✅ | All transactional emails |
@@ -143,7 +145,7 @@ ADDON_WEBHOOK_SECRET=<addon webhook secret from Razorpay>
 | Razorpay webhook auto-activate | ✅ | Payment → expiry +30 days |
 | Manual extend (MASTER_ADMIN) | ✅ | POST /api/subscription/extend |
 | Subscription emails | ✅ | Confirmation, reminder, expired |
-| Daily subscription cron | ✅ | PM2 cluster-safe — instance 0 only |
+| Daily subscription cron | ✅ | PM2 fork — single instance |
 | Payment History page | ✅ | MASTER_ADMIN — paginated (20/page) |
 | AI Smart Remark Suggestions | ✅ | Claude Haiku — PRO + ENTERPRISE |
 | AI Follow-up Message Generator | ✅ | Claude Haiku — WhatsApp + Call script |
@@ -156,7 +158,6 @@ ADDON_WEBHOOK_SECRET=<addon webhook secret from Razorpay>
 | Activate subscription button | ✅ | Agencies page — no SQL needed |
 | Smart telecaller scoring v2 | ✅ | 5-metric formula with confidence damping |
 | Performance page redesign | ✅ | Hero card, 5 metric cards, radar chart |
-| PM2 cron deduplication | ✅ | Only instance 0 runs cron — no duplicate emails |
 | Agencies pagination | ✅ | 20/page — ready for 500+ agencies |
 | Payments pagination | ✅ | 20/page — ready for 1000+ payments |
 | ProcessingJobs 7-day cleanup | ✅ | Auto-cleanup in cron |
@@ -169,7 +170,63 @@ ADDON_WEBHOOK_SECRET=<addon webhook secret from Razorpay>
 | In Progress stat card | ✅ | Replaces Contacted — shows all touched leads |
 | Follow Up date sort | ✅ | Leads sorted by nearest follow-up date when Follow Up filter active |
 | firstContactedAt timestamp | ✅ | New DB column — accurate speed-to-contact scoring |
-| Sparkle panel removed | ✅ | Lead cards cleaned — AI Suggest moved to Update dialog |
+| Mobile responsive all pages | ✅ | p-3 sm:p-6 pattern — desktop layout unchanged |
+| PM2 fork mode | ✅ | Single instance — saves ~63MB RAM vs cluster |
+| Website contact form | ✅ | POST /api/contact → email via Resend |
+| Tawk.to live chat | ✅ | icaweb.in widget ID: 69c62f46bf40c71c359f3fc9 |
+| APLM white-label CRM | ✅ | crm.aplmsales.com — separate DB, PM2, branding |
+| **v9.4 DB Schema** | ✅ | attendance + commissions tables, service commission, office location |
+
+---
+
+## 🆕 v9.4 Features (DB Schema Done — UI In Progress)
+
+### Telecaller Attendance
+- GPS-based punch in/out via mobile browser
+- Agency Admin sets office coordinates + allowed radius (meters)
+- Telecaller blocked from punching in if outside radius
+- Separate page per role: Telecaller (own) → TL (team) → Admin (all)
+
+### Commission System
+- Triggered on lead status = CONVERTED
+- Commission amount set per service by Agency Admin
+- Fallback to agency-level default if service has no commission set
+- Separate Commission page with full history per role
+
+### DB Changes (v9.4)
+```sql
+-- agencies table (new columns)
+commission_per_lead     INTEGER DEFAULT 0       -- ₹ default per converted lead
+office_latitude         TEXT                    -- Office GPS lat
+office_longitude        TEXT                    -- Office GPS lng  
+office_radius_meters    INTEGER DEFAULT 100     -- Punch-in allowed radius
+
+-- services table (new column)
+commission_amount       INTEGER DEFAULT 0       -- ₹ per converted lead for this service
+
+-- New table: attendance
+id, agency_code, user_id, date (YYYY-MM-DD)
+punch_in_at, punch_in_lat, punch_in_lng
+punch_out_at, punch_out_lat, punch_out_lng
+status (PRESENT | HALF_DAY | ABSENT)
+
+-- New table: commissions
+id, agency_code, user_id, lead_id
+amount, paid_status (PENDING | PAID)
+converted_at, paid_at
+```
+
+### Commission Logic
+```
+Lead status → CONVERTED
+      ↓
+Check lead.service → find service.commission_amount
+      ↓
+If commission_amount > 0 → use it
+If commission_amount = 0 → use agency.commission_per_lead
+      ↓
+Insert into commissions table
+```
 
 ---
 
@@ -198,16 +255,9 @@ Send via WhatsApp:
 
 Step 5 — Agency Sets Up Team
 AGENCY_ADMIN → Creates TEAM_LEADER + TELE_CALLER
+AGENCY_ADMIN → Sets office location + commission per service
 TEAM_LEADER → Adds leads → Assigns to telecallers
-TELE_CALLER → Calls leads → Uses AI tools
-```
-
-**Subscription renewal — automatic:**
-```
-Day 23 → 7-day reminder email
-Day 29 → 1-day urgent reminder
-Day 30 → Expired → renewal banner in CRM
-Agency pays on icaweb.in → webhook → +30 days auto
+TELE_CALLER → Calls leads → Punches in/out → Uses AI tools
 ```
 
 ---
@@ -224,75 +274,29 @@ GET  /api/agency/profile        → Get own agency business profile (AGENCY_ADMI
 PATCH /api/agency/profile       → Update own agency business profile (AGENCY_ADMIN)
 ```
 
-### Plan Gating
-| Feature | BASIC | PRO | ENTERPRISE |
-|---------|:-----:|:---:|:----------:|
-| Smart Remarks | ❌ | ✅ | ✅ |
-| Follow-up Generator | ❌ | ✅ | ✅ |
-| Lead Scoring | ❌ | ✅ | ✅ |
-| Inline AI on leads | ❌ | ✅ | ✅ |
-| AI Chatbot | ❌ | ❌ | ✅ |
-
 ---
 
 ## 🏢 Agency Business Profile
 
-Each agency can store a **business profile** used by all AI tools to personalise responses.
+Each agency stores a business profile used by all AI tools.
 
-| Field | Description | Example |
-|---|---|---|
-| Company Profile | Description of agency, location, target customers | "Pune-based agency, motor + health, serving individuals and SMEs" |
-| Products / Services | Comma-separated insurance products sold | "Motor Insurance, Health Insurance, Term Life, Personal Accident" |
-
-### How It Works
-- **MASTER_ADMIN** → Agencies page → Add/Edit Profile button per agency
-- **AGENCY_ADMIN** → Business Profile page in sidebar → edit own profile
-
-### AI Tools That Use It
-| Tool | How profile is used |
-|---|---|
-| Smart Remarks | Writes remarks relevant to agency's insurance type |
-| Follow-up Generator | Personalises messages for agency's specific services |
-| Lead Scoring | Boosts score if lead's service matches agency's core focus |
-| CRM Chatbot | Answers questions with full business context |
-
-```sql
--- DB columns added to agencies table
-business_profile  TEXT  -- Company description
-business_services TEXT  -- Products/services sold
-```
+| Field | Description |
+|-------|-------------|
+| Company Profile | Description of agency, location, target customers |
+| Products / Services | Comma-separated insurance products sold |
 
 ---
 
 ## 📊 Telecaller Scoring Formula v2
 
 ```
-Score = (Conversion Quality    × 35%)   ← converted / leads in play
-      + (Speed to Contact      × 25%)   ← avg hours to first contact
-      + (Follow-Up Discipline  × 20%)   ← on-time follow-ups / total
-      + (Lead Coverage         × 15%)   ← leads touched / total assigned
-      + (Closure Decisiveness  × 5%)    ← NOT_INTERESTED closed decisively
+Score = (Conversion Quality    × 35%)
+      + (Speed to Contact      × 25%)
+      + (Follow-Up Discipline  × 20%)
+      + (Lead Coverage         × 15%)
+      + (Closure Decisiveness  × 5%)
 
 Confidence damping: < 5 leads → score blended toward neutral 40%
-NOT_INTERESTED excluded from conversion denominator (professional behaviour)
-```
-
----
-
-## 🎁 Add-on Packs
-
-### API Endpoints
-```
-POST /api/addons/create-order   → Create Razorpay order
-POST /api/addons/verify         → Verify payment + credit agency
-GET  /api/addons/balance        → Get current credits (public)
-POST /api/addons/webhook        → Auto-credit on payment
-```
-
-### Check Credits
-```bash
-psql -U postgres -h localhost -d ica_crm -c \
-  "SELECT name, agency_code, rc_addon_credits, ai_addon_credits FROM agencies;"
 ```
 
 ---
@@ -300,49 +304,25 @@ psql -U postgres -h localhost -d ica_crm -c \
 ## 🔄 Subscription Lifecycle
 
 ```
-Customer pays on icaweb.in or CRM
-        ↓
-Razorpay fires → /api/subscription/webhook
-        ↓
-Verify → find agency → expiry = today + 30 days
-        ↓
+Customer pays → Razorpay webhook → expiry + 30 days
 Day 23 → 7-day reminder email
 Day 29 → 1-day urgent reminder
 Day 30 → expired → banner in CRM
-        ↓
-cron: daysLeft ≤ 0 → EXPIRED → send expired email
-        ↓
+cron → daysLeft ≤ 0 → EXPIRED → send expired email
 Customer pays → webhook → +30 more days
 ```
 
-### Subscription API
-```
-GET  /api/subscription/status    → plan, expiry, days left
-POST /api/subscription/extend    → MASTER_ADMIN manual extend
-POST /api/subscription/webhook   → Razorpay auto-activate
-```
-
-### Razorpay Webhooks
-| URL | Purpose |
-|-----|---------|
-| /api/payments/webhook | Legacy payment verify |
-| /api/subscription/webhook | Subscription auto-activate |
-| /api/addons/webhook | Add-on pack credit |
-
 ---
 
-## ⏱️ Daily Cron (PM2 Cluster-Safe)
+## ⏱️ Daily Cron (PM2 Fork)
 
 - Lives in `server/index.ts`
-- Runs on **instance 0 only** (`NODE_APP_INSTANCE === "0"`)
-- Instance 1 skips — no duplicate emails
 - Fires 10s after startup then every 24h
+- No instance guard needed (fork mode = single instance)
 
 ```bash
 pm2 logs ica-crm --lines 10
-# Look for:
-# [cron] Subscription cron registered on primary instance  (instance 0)
-# [cron] Cron skipped on instance 1                        (instance 1)
+# [cron] Subscription cron registered on primary instance
 # [cron] Subscription cron done — X agencies checked
 # [cron] Job cleanup done — old completed/failed jobs removed
 ```
@@ -361,8 +341,6 @@ pm2 logs ica-crm --lines 10
 | 1-day Reminder | Daily cron — daysLeft === 1 | `sendSubscriptionReminderEmail` |
 | Plan Expired | Daily cron — daysLeft ≤ 0 | `sendSubscriptionExpiredEmail` |
 
-> All email prices and features audited and corrected in v8.8. Add-on packs shown in Welcome + Prospect emails.
-
 ---
 
 ## 🚀 Common Server Commands
@@ -377,8 +355,8 @@ pm2 logs ica-crm --lines 50
 # Deploy
 git pull origin master && npm run build && pm2 restart ica-crm
 
-# Edit env
-nano /var/www/ica-crm/.env && pm2 restart all --update-env
+# If .env changed
+pm2 restart ica-crm --update-env
 
 # DB
 psql -U postgres -h localhost -d ica_crm
@@ -395,13 +373,11 @@ psql -U postgres -h localhost -d ica_crm -c \
 git tag -a vX.X -m "Description" && git push origin vX.X
 
 # Rollback to a tag
-git checkout vX.X && npm run build && pm2 restart all --update-env
+git checkout vX.X && npm run build && pm2 restart ica-crm
 
 # Return to latest
-git checkout master && npm run build && pm2 restart all --update-env
+git checkout master && npm run build && pm2 restart ica-crm
 ```
-
-> ⚠️ Always use `pm2 restart all --update-env` when .env has changed
 
 ---
 
@@ -416,7 +392,7 @@ git checkout master && npm run build && pm2 restart all --update-env
 | Storage layer | server/storage.ts |
 | Main app layout | client/src/App.tsx |
 | Agencies page | client/src/pages/agencies.tsx |
-| Leads page (inline AI + select all) | client/src/pages/leads.tsx |
+| Leads page | client/src/pages/leads.tsx |
 | AI Tools page | client/src/pages/ai-tools.tsx |
 | Payment History page | client/src/pages/payment-history.tsx |
 | Performance page | client/src/pages/performance.tsx |
@@ -434,24 +410,18 @@ git checkout master && npm run build && pm2 restart all --update-env
 
 | Problem | Solution |
 |---------|---------|
-| Site not loading | `pm2 restart all --update-env` |
-| 502 Bad Gateway | `curl http://localhost:5000/api/auth/me` — if fails: `npm run build && pm2 restart all --update-env` |
+| Site not loading | `pm2 restart ica-crm --update-env` |
+| 502 Bad Gateway | `curl http://localhost:5000/api/auth/me` — if fails: `npm run build && pm2 restart ica-crm` |
 | Build failed | `npm run build 2>&1 \| grep ERROR` |
 | Subscription not activating | Check RAZORPAY_KEY_SECRET in .env |
 | Emails not sending | Check RESEND_API_KEY in .env |
 | AI returns 403 | Agency on BASIC plan |
 | AI chatbot 403 | ENTERPRISE plan required |
 | AI service error 500 | Check ANTHROPIC_API_KEY in .env |
-| Sparkle button not showing | Lead must be assigned to telecaller + hard refresh |
-| Addon verify fails on icaweb.in | Check ALLOWED_ORIGINS includes https://icaweb.in |
 | Addon credits not added | Check ADDON_WEBHOOK_SECRET in .env |
-| Activate button fails | Check token — logout and login again |
 | SSL expired | `certbot renew && systemctl reload nginx` |
 | Leads page blank | Hard refresh (Ctrl+Shift+R) — likely JS cache |
-| AI Suggest not showing | Agency must be PRO or ENTERPRISE plan |
-| Bulk WhatsApp not visible | Only AGENCY_ADMIN role sees this in AI Tools |
-| Second wa.me not opening | Browser popup blocker — use Next Contact button |
-| Cron sending duplicate emails | Check pm2 logs — instance 1 should show "Cron skipped" |
+| Browser showing old UI | Hard refresh Ctrl+Shift+R or open Incognito |
 
 ---
 
@@ -459,16 +429,14 @@ git checkout master && npm run build && pm2 restart all --update-env
 
 | Tag | Date | Description |
 |-----|------|-------------|
+| `v9.4` | Mar 30, 2026 | DB schema — attendance, commissions, service commission, office location (UI in progress) |
+| `v9.3` | Mar 28, 2026 | Mobile responsive all pages, PM2 fork, website contact form, Tawk.to, ICA Team sender |
 | `v9.2` | Mar 25, 2026 | AI Suggest remark, Bulk WhatsApp, In Progress stat, Follow Up sort, firstContactedAt |
 | `v9.1` | Mar 21, 2026 | Agency Business Profile |
-| `v8.9` | Mar 21, 2026 | Prospect email UI, email audit fixes, add-ons in emails, scoring v2, performance page, pagination, cron dedup, select-all checkbox |
-| `v8.7` | Mar 21, 2026 | Select all on current page checkbox for Team Leader bulk assign |
-| `v8.6` | Mar 21, 2026 | Agencies + payments pagination, 7-day processingJobs cleanup cron |
+| `v8.9` | Mar 21, 2026 | Prospect email UI, email audit, scoring v2, performance page, pagination, cron dedup |
 | `v8.5` | Mar 21, 2026 | Smart telecaller scoring v2, Performance page redesign, PM2 cron dedup fix |
 | `v8.4` | Mar 19, 2026 | Activate subscription button on Agencies page |
-| `v8.3` | Mar 19, 2026 | Add-on credit balance on Plan & Upgrade page |
 | `v8.2` | Mar 19, 2026 | Add-on packs backend + icaweb.in checkout |
-| `v8.1` | Mar 18, 2026 | Inline AI buttons on lead cards |
 | `v8.0` | Mar 18, 2026 | AI Suite — 4 features + Payment History |
 | `v7.0` | Mar 18, 2026 | Daily subscription cron |
 | `v6.0` | Mar 17, 2026 | Subscription system + Razorpay webhook |
@@ -479,9 +447,27 @@ git checkout master && npm run build && pm2 restart all --update-env
 
 | Task | Priority |
 |------|----------|
+| v9.4 — Attendance UI (punch in/out page per role) | 🔴 High |
+| v9.4 — Commission UI (settings + history page per role) | 🔴 High |
+| v9.4 — Commission trigger on CONVERTED lead | 🔴 High |
 | RC API key (Surepass) — ₹25k deposit | 🔴 High |
-| Onboard APLM + ICA with real users | 🔴 High |
+| APLM website — aplmsales.com (waiting for content) | 🟡 Medium |
 | Auto-reply support@icaweb.in (ImprovMX) | 🟡 Medium |
+| Verify aplmsales.com domain in Resend | 🟡 Medium |
+
+---
+
+## 🏢 White-Label: APLM CRM
+
+| Item | Detail |
+|------|--------|
+| **CRM URL** | https://crm.aplmsales.com ✅ LIVE |
+| **GitHub** | https://github.com/icassameer/aplm |
+| **Working Dir** | /var/www/aplm-crm |
+| **PM2** | id 8, port 5001, fork mode |
+| **Database** | aplm_crm (separate) |
+| **Agency Admin** | Ram_mane (Parshuram Mane) |
+| **Deploy** | `cd /var/www/aplm-crm && git pull origin master && npm run build && pm2 restart aplm-crm` |
 
 ---
 
@@ -489,24 +475,17 @@ git checkout master && npm run build && pm2 restart all --update-env
 
 | Version | Date | Changes |
 |---------|------|---------|
-| v8.9 | Mar 21, 2026 | Send Prospect Email UI button on Agencies page. Email templates audit — ENTERPRISE price fixed (₹12k), plan features corrected, add-ons added to Welcome + Prospect emails. Email campaign docs + prospect email reference doc created. |
-| v8.8 | Mar 21, 2026 | Email audit: ENTERPRISE price ₹15k→₹12k, plan features corrected, add-on packs added to Welcome + Prospect emails, sendPaymentLinkEmail FROM fixed. |
-| v8.7 | Mar 21, 2026 | Select all on current page checkbox for Team Leader bulk lead assignment. |
-| v8.6 | Mar 21, 2026 | Agencies pagination (20/page), payments pagination (20/page), 7-day processingJobs auto-cleanup in cron. |
-| v8.5 | Mar 21, 2026 | Smart telecaller scoring v2 (5 metrics: conversion quality, speed to contact, follow-up discipline, lead coverage, closure decisiveness). Performance page redesign with hero card, metric cards, confidence indicator. PM2 cron deduplication — only instance 0 runs cron. |
-| v8.4 | Mar 19, 2026 | Activate subscription button on Agencies page — select plan + days, no SQL needed. |
-| v8.3 | Mar 19, 2026 | Add-on credit balance on Plan & Upgrade page with Buy more link. |
-| v8.2 | Mar 19, 2026 | Add-on packs backend + icaweb.in checkout section live. |
-| v8.1 | Mar 18, 2026 | Inline AI sparkle button on lead cards. |
+| v9.4 | Mar 30, 2026 | DB schema for attendance (GPS punch in/out) + commissions (per service/converted lead) + office location on agencies + commissionAmount on services. UI pending. |
+| v9.3 | Mar 28, 2026 | Mobile responsive all pages, PM2 single instance fork, website contact form email, Tawk.to live chat, ICA Team sender name, icaweb.in URL fixes. APLM white-label CRM launched. |
+| v9.2 | Mar 25, 2026 | AI Suggest remark in Update dialog, Bulk WhatsApp in AI Tools, In Progress stat card, Follow Up sort, firstContactedAt scoring. |
+| v9.1 | Mar 21, 2026 | Agency Business Profile — injected into all 4 AI tools. |
+| v9.0 | Mar 21, 2026 | Full SOP documentation of all features up to v8.9. |
+| v8.9 | Mar 21, 2026 | Send Prospect Email UI, email audit fixes, scoring v2, performance page, pagination, cron dedup. |
 | v8.0 | Mar 18, 2026 | AI Suite — Smart Remarks, Follow-up, Lead Scoring, CRM Chatbot. Payment History. |
-| v7.0 | Mar 18, 2026 | Daily subscription cron — 7-day/1-day reminders + auto-expire. |
+| v7.0 | Mar 18, 2026 | Daily subscription cron. |
 | v6.0 | Mar 17, 2026 | Subscription expiry system, 30-day billing, Razorpay webhook. |
-| v5.0 | Mar 2026 | Marketing website, Razorpay live payments, privacy policy. |
-| v4.0 | Mar 2026 | Resend email integration, VS Code SSH. |
-| v3.0 | Mar 2026 | RC Lookup UI, plan limits, WhatsApp, VPS deployment, SSL. |
-| v2.0 | Feb 2026 | Security hardening, AI Proceeding, performance engine. |
 | v1.0 | Jan 2026 | Initial release — lead management, 4 roles, JWT auth. |
 
 ---
 
-*Last updated: March 28, 2026 | v9.3 | Sameer | ICA — Innovation, Consulting & Automation*
+*Last updated: March 30, 2026 | v9.4 | Sameer | ICA — Innovation, Consulting & Automation*
