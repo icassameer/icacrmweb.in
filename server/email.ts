@@ -156,47 +156,125 @@ export async function sendWelcomeEmail(
   to: string,
   fullName: string,
   username: string,
+  password: string,
+  role: string,
   plan: string,
   agencyName: string
 ): Promise<boolean> {
   const color = planColors[plan] || "#1a5276";
   const price = planPrices[plan] || "";
   const features = planFeatures[plan] || [];
+  const isAdmin = role === "AGENCY_ADMIN";
+  const roleLabel = role === "AGENCY_ADMIN" ? "Agency Admin" : role === "TEAM_LEADER" ? "Team Leader" : "Telecaller";
+
+  const onboardingSteps = isAdmin ? `
+    <h3 style="color:#1a5276;margin:24px 0 12px;">📋 Quick Start — 5 Steps to Get Going</h3>
+    <table width="100%" cellpadding="0" cellspacing="0">
+      ${[
+        ["1", "#2e86c1", "Login & change your password", "Go to crm.icaweb.in → login → Profile → Change Password"],
+        ["2", "#117a65", "Set your Office Location", "Attendance page → Save office GPS + radius for telecaller check-in"],
+        ["3", "#6c3483", "Set Commission per Service", "Services page → Add services → Set commission amount per service"],
+        ["4", "#c0392b", "Add your Team", "Users page → Add Member → Add Team Leaders and Telecallers"],
+        ["5", "#d68910", "Add Leads & Assign", "Leads page → Bulk Upload or Add Lead → Assign to telecallers"],
+      ].map(([num, col, title, desc]) => `
+      <tr>
+        <td width="36" style="padding:6px 8px 6px 0;vertical-align:top;">
+          <div style="background:${col};color:#fff;border-radius:50%;width:28px;height:28px;text-align:center;line-height:28px;font-weight:bold;font-size:13px;">${num}</div>
+        </td>
+        <td style="padding:6px 0;border-bottom:1px solid #f0f0f0;">
+          <p style="margin:0;font-weight:bold;color:#1a252f;font-size:13px;">${title}</p>
+          <p style="margin:2px 0 0;color:#7f8c8d;font-size:12px;">${desc}</p>
+        </td>
+      </tr>`).join("")}
+    </table>` : `
+    <h3 style="color:#1a5276;margin:24px 0 12px;">📋 How to Get Started</h3>
+    <table width="100%" cellpadding="0" cellspacing="0">
+      ${[
+        ["1", "#2e86c1", "Login & change your password", "Go to crm.icaweb.in → login → Profile → Change Password"],
+        ["2", "#117a65", "Check your assigned leads", "Go to Leads page — your leads will appear here"],
+        ["3", "#6c3483", "Punch in daily attendance", "Go to Attendance page → Punch In from office location"],
+        ["4", "#c0392b", "Update lead status after every call", "Open lead → Update status → Add remarks"],
+      ].map(([num, col, title, desc]) => `
+      <tr>
+        <td width="36" style="padding:6px 8px 6px 0;vertical-align:top;">
+          <div style="background:${col};color:#fff;border-radius:50%;width:28px;height:28px;text-align:center;line-height:28px;font-weight:bold;font-size:13px;">${num}</div>
+        </td>
+        <td style="padding:6px 0;border-bottom:1px solid #f0f0f0;">
+          <p style="margin:0;font-weight:bold;color:#1a252f;font-size:13px;">${title}</p>
+          <p style="margin:2px 0 0;color:#7f8c8d;font-size:12px;">${desc}</p>
+        </td>
+      </tr>`).join("")}
+    </table>`;
 
   const content = `
-    <h2 style="color:#1a252f;margin:0 0 8px;">Welcome to ICA CRM, ${fullName}! 🎉</h2>
-    <p style="color:#566573;margin:0 0 24px;">Your <strong>${plan}</strong> plan is now active for <strong>${agencyName}</strong>.</p>
+    <h2 style="color:#1a252f;margin:0 0 4px;">Welcome to ICA CRM, ${fullName}! 🎉</h2>
+    <p style="color:#566573;margin:0 0 20px;">Your account is ready. You have been added as <strong>${roleLabel}</strong> for <strong>${agencyName}</strong>.</p>
 
-    <div style="background:${color};border-radius:6px;padding:16px 20px;margin-bottom:24px;">
-      <p style="margin:0;color:#ffffff;font-size:18px;font-weight:bold;">${plan} PLAN — ${price}</p>
+    <div style="background:${color};border-radius:8px;padding:18px 24px;margin-bottom:20px;">
+      <p style="margin:0;color:#ffffff;font-size:16px;font-weight:bold;">${isAdmin ? plan + " PLAN — " + price : agencyName}</p>
+      <p style="margin:4px 0 0;color:rgba(255,255,255,0.75);font-size:12px;">${isAdmin ? "Your agency subscription" : "Your employer agency"}</p>
     </div>
 
-    <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8f9fa;border-radius:6px;padding:20px;margin-bottom:24px;">
-      <tr><td style="padding:6px 0;"><strong style="color:#1a5276;">🌐 CRM Access:</strong> <a href="https://crm.icaweb.in" style="color:#2e86c1;">https://crm.icaweb.in</a></td></tr>
-      <tr><td style="padding:6px 0;"><strong style="color:#1a5276;">👤 Username:</strong> ${username}</td></tr>
-      <tr><td style="padding:6px 0;"><strong style="color:#e74c3c;">🔑 Please change your password after first login</strong></td></tr>
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:#f0f7ff;border:1px solid #bcd4f0;border-radius:8px;padding:0;margin-bottom:20px;overflow:hidden;">
+      <tr><td colspan="2" style="background:#1a5276;padding:10px 16px;">
+        <p style="margin:0;color:#fff;font-weight:bold;font-size:13px;">🔐 Your Login Credentials</p>
+      </td></tr>
+      <tr>
+        <td style="padding:10px 16px;border-bottom:1px solid #d0e4f7;width:40%;">
+          <p style="margin:0;color:#7f8c8d;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;">CRM URL</p>
+          <a href="https://crm.icaweb.in" style="color:#2e86c1;font-size:13px;font-weight:bold;">crm.icaweb.in</a>
+        </td>
+        <td style="padding:10px 16px;border-bottom:1px solid #d0e4f7;">
+          <p style="margin:0;color:#7f8c8d;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;">Role</p>
+          <p style="margin:0;color:#1a252f;font-size:13px;font-weight:bold;">${roleLabel}</p>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:10px 16px;border-bottom:1px solid #d0e4f7;">
+          <p style="margin:0;color:#7f8c8d;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;">Username</p>
+          <p style="margin:0;color:#1a252f;font-size:15px;font-weight:bold;letter-spacing:0.5px;">${username}</p>
+        </td>
+        <td style="padding:10px 16px;border-bottom:1px solid #d0e4f7;">
+          <p style="margin:0;color:#7f8c8d;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;">Password</p>
+          <p style="margin:0;color:#c0392b;font-size:15px;font-weight:bold;letter-spacing:1px;">${password}</p>
+        </td>
+      </tr>
+      <tr><td colspan="2" style="padding:10px 16px;">
+        <p style="margin:0;color:#e74c3c;font-size:12px;">⚠️ Change your password immediately after first login for security.</p>
+      </td></tr>
     </table>
 
-    <h3 style="color:#1a5276;margin:0 0 12px;">What's included in your ${plan} plan:</h3>
-    <ul style="margin:0 0 24px;padding-left:20px;color:#34495e;">
-      ${features.map(f => `<li style="margin-bottom:6px;">${f}</li>`).join("")}
-    </ul>
+    <div style="text-align:center;margin-bottom:24px;">
+      <a href="https://crm.icaweb.in" style="display:inline-block;background:#1a5276;color:#ffffff;padding:14px 40px;border-radius:8px;text-decoration:none;font-size:15px;font-weight:bold;">
+        🚀 Login to ICA CRM Now
+      </a>
+    </div>
 
-    <div style="background:#eaf4fb;border-left:4px solid #2e86c1;padding:14px 16px;border-radius:0 6px 6px 0;margin-bottom:24px;">
+    ${onboardingSteps}
+
+    ${isAdmin ? `
+    <h3 style="color:#1a5276;margin:24px 0 12px;">✅ What's included in your ${plan} plan:</h3>
+    <ul style="margin:0 0 24px;padding-left:20px;color:#34495e;">
+      ${features.map(f => `<li style="margin-bottom:6px;font-size:13px;">${f}</li>`).join("")}
+    </ul>
+    ${addonInfo}` : ""}
+
+    <div style="background:#eaf4fb;border-left:4px solid #2e86c1;padding:14px 16px;border-radius:0 6px 6px 0;margin:24px 0;">
       <p style="margin:0;color:#1a5276;font-size:13px;">
-        <strong>📋 Terms & Conditions:</strong> By using ICA CRM, you agree to our 
-        <a href="https://crm.icaweb.in/privacy-policy" style="color:#2e86c1;">Privacy Policy & Terms of Service</a>. 
-        Replying to this email confirms your acceptance.
+        <strong>📋 Terms & Conditions:</strong> By using ICA CRM, you agree to our
+        <a href="https://crm.icaweb.in/privacy-policy" style="color:#2e86c1;">Privacy Policy & Terms of Service</a>.
       </p>
     </div>
 
-    \${addonInfo}
-
-    <p style="color:#566573;margin:24px 0 0;">Need help? Reply to this email or call <strong>+91 99679 69850</strong></p>
+    <p style="color:#566573;margin:0;">Need help? Reply to this email or call <strong>+91 99679 69850</strong></p>
     <p style="color:#566573;margin:8px 0 0;">Best regards,<br><strong>Sameer | ICA Team</strong></p>
   `;
 
-  return sendEmail(to, `Welcome to ICA CRM — Your ${plan} Plan is Active!`, baseTemplate(content));
+  const subject = isAdmin
+    ? `Welcome to ICA CRM — Your ${plan} Plan is Active!`
+    : `Welcome to ICA CRM — Your ${roleLabel} account is ready!`;
+
+  return sendEmail(to, subject, baseTemplate(content));
 }
 
 // ── 2. Prospect Inquiry Email ─────────────────────────────────────────────────

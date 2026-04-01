@@ -427,10 +427,10 @@ export async function registerRoutes(
       const { password: _, ...safeUser } = user;
 
       // Send welcome email if email provided and agency exists
-      if (email && agencyCode && role === "AGENCY_ADMIN") {
+      if (email && agencyCode) {
         const agency = await storage.getAgencyByCode(agencyCode);
         if (agency) {
-          sendWelcomeEmail(email, fullName, username, agency.plan, agency.name).catch(err =>
+          sendWelcomeEmail(email, fullName, username, password, role, agency.plan, agency.name).catch(err =>
             console.error("Welcome email failed:", err.message)
           );
         }
@@ -2303,7 +2303,7 @@ ${businessContext4 ? `About this agency:\n${businessContext4}\n` : ""}${crmConte
       if (!to || !fullName || !username || !agencyCode) return res.status(400).json({ success: false, message: "Missing fields" });
       const agency = await storage.getAgencyByCode(agencyCode);
       if (!agency) return res.status(404).json({ success: false, message: "Agency not found" });
-      const sent = await sendWelcomeEmail(to, fullName, username, agency.plan, agency.name);
+      const sent = await sendWelcomeEmail(to, fullName, username, "", "AGENCY_ADMIN", agency.plan, agency.name);
       res.json({ success: sent, message: sent ? "Welcome email sent!" : "Failed to send email" });
     } catch (err: any) {
       res.status(500).json({ success: false, message: err.message });
