@@ -10,6 +10,7 @@ export default function LoginPage() {
   const [signupForm, setSignupForm] = useState({ fullName: "", email: "", mobile: "", username: "", password: "" });
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [deactivated, setDeactivated] = useState(false);
   const [signupLoading, setSignupLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<"login" | "signup">("login");
   const { login } = useAuth();
@@ -83,7 +84,11 @@ export default function LoginPage() {
       await login(loginForm.username, loginForm.password);
       setTimeout(() => setLocation("/"), 100);
     } catch (err: any) {
-      toast({ title: "Login Failed", description: err.message, variant: "destructive" });
+      if (err.message?.includes("deactivated") || err.message?.includes("inactive")) {
+        setDeactivated(true);
+      } else {
+        toast({ title: "Login Failed", description: err.message, variant: "destructive" });
+      }
       setLoading(false);
     }
   };
@@ -204,7 +209,27 @@ export default function LoginPage() {
               <button className={`tab-btn${activeTab==="login"?" active":""}`} onClick={()=>setActiveTab("login")} data-testid="tab-login">Sign In</button>
               <button className={`tab-btn${activeTab==="signup"?" active":""}`} onClick={()=>setActiveTab("signup")} data-testid="tab-signup">Sign Up</button>
             </div>
-            {activeTab==="login"&&(
+            {deactivated ? (
+              <div style={{textAlign:"center",padding:"8px 0"}}>
+                <div style={{width:"56px",height:"56px",borderRadius:"50%",background:"rgba(239,68,68,0.15)",display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 16px"}}>
+                  <span style={{fontSize:"28px"}}>🔴</span>
+                </div>
+                <h3 style={{margin:"0 0 8px",fontSize:"18px",fontWeight:700,color:"#fff"}}>Subscription Expired</h3>
+                <p style={{margin:"0 0 20px",fontSize:"13px",color:"rgba(255,255,255,0.5)",lineHeight:1.6}}>Your agency subscription has expired. Renew now to restore access for your entire team.</p>
+                <a href="https://icaweb.in/#pricing" target="_blank" rel="noopener noreferrer"
+                  style={{display:"block",width:"100%",padding:"13px",borderRadius:"10px",background:"linear-gradient(135deg,#dc2626,#ef4444)",color:"#fff",fontWeight:700,fontSize:"14px",textDecoration:"none",textAlign:"center",marginBottom:"12px",boxSizing:"border-box"}}>
+                  🔄 Renew Subscription Now
+                </a>
+                <a href="https://wa.me/919967969850?text=Hi+Sameer%2C+my+agency+subscription+expired.+Please+help+me+renew."
+                  target="_blank" rel="noopener noreferrer"
+                  style={{display:"block",width:"100%",padding:"11px",borderRadius:"10px",background:"rgba(37,211,102,0.15)",border:"1px solid rgba(37,211,102,0.3)",color:"#25d366",fontWeight:600,fontSize:"13px",textDecoration:"none",textAlign:"center",marginBottom:"16px",boxSizing:"border-box"}}>
+                  📲 WhatsApp Sameer to Renew
+                </a>
+                <button onClick={()=>setDeactivated(false)} style={{background:"none",border:"none",color:"rgba(255,255,255,0.35)",fontSize:"12px",cursor:"pointer",textDecoration:"underline"}}>
+                  ← Back to Login
+                </button>
+              </div>
+            ) : activeTab==="login" ? (
               <form onSubmit={handleLogin} style={{display:"flex",flexDirection:"column",gap:"16px"}}>
                 <div>
                   <label className="login-label">Username</label>
@@ -223,8 +248,8 @@ export default function LoginPage() {
                   {loading?<><div className="spin"/>Signing in...</>:<><LogIn size={16}/>Sign In</>}
                 </button>
               </form>
-            )}
-            {activeTab==="signup"&&(
+            ) : null}
+            {!deactivated && activeTab==="signup"&&(
               <form onSubmit={handleSignup} style={{display:"flex",flexDirection:"column",gap:"14px"}}>
                 {[{label:"Full Name",key:"fullName",type:"text",placeholder:"Enter your full name",testid:"input-signup-name"},{label:"Email",key:"email",type:"email",placeholder:"Enter your email",testid:"input-signup-email"},{label:"Mobile Number",key:"mobile",type:"tel",placeholder:"Enter your mobile number",testid:"input-signup-mobile",minLength:10},{label:"Username",key:"username",type:"text",placeholder:"Choose a username",testid:"input-signup-username"},{label:"Password",key:"password",type:"password",placeholder:"Choose a password (min 6 chars)",testid:"input-signup-password",minLength:6}].map(({label,key,type,placeholder,testid,minLength})=>(
                   <div key={key}>

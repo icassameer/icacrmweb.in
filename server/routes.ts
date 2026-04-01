@@ -2483,6 +2483,40 @@ ${businessContext4 ? `About this agency:\n${businessContext4}\n` : ""}${crmConte
     }
   });
 
+  // POST /api/payments/website-renew — auto-activate after icaweb.in payment
+  app.post("/api/payments/website-renew", async (req: Request, res: Response) => {
+    try {
+      const { agencyCode, plan, razorpay_payment_id, email, name } = req.body;
+      if (!agencyCode || !plan || !razorpay_payment_id) {
+        return res.status(400).json({ success: false, message: "Missing fields" });
+      }
+      const agency = await storage.getAgencyByCode(agencyCode.toUpperCase());
+      if (!agency) return res.status(404).json({ success: false, message: "Agency not found" });
+      const limits = PLAN_LIMITS[plan] || {};
+      const newExpiry = new Date();
+      newExpiry.setDate(newExpiry.getDate() + 30);
+      await storage.updateAgency(agency.id, {
+        plan, ...limits, planAssignedAt: new Date(),
+        isActive: true, subscriptionExpiry: newExpiry
+      });
+      // Send payment success email
+      try {
+        const agencyUsers = await storage.getUsersByAgency(agencyCode);
+        const adminUser = agencyUsers.find((u: any) => u.role === "AGENCY_ADMIN");
+        const toEmail = adminUser?.email || email;
+        const toName = adminUser?.fullName || name;
+        if (toEmail) {
+          await sendPaymentSuccessEmail(toEmail, toName, plan, 0, razorpay_payment_id);
+        }
+      } catch (emailErr) { console.error("Renewal email failed:", emailErr); }
+      console.log(`[website-renew] Agency ${agencyCode} renewed on ${plan} until ${newExpiry}`);
+      res.json({ success: true, message: "Agency renewed successfully" });
+    } catch (err: any) {
+      console.error("website-renew error:", err);
+      res.status(500).json({ success: false, message: err.message });
+    }
+  });
+
   // POST /api/payments/webhook
   app.post("/api/payments/webhook", express.raw({ type: "application/json" }), async (req: Request, res: Response) => {
     try {
