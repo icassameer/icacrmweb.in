@@ -75,7 +75,7 @@ ADDON_WEBHOOK_SECRET=<addon webhook secret from Razorpay>
 | Payments | Razorpay (live) — UPI, Cards, NetBanking, Wallets, EMI |
 | Process Manager | PM2 fork mode (1 instance) |
 | Web Server | Nginx + SSL (Let's Encrypt) |
-| Security | helmet.js + CORS + rate-limit + Zod validation |
+| Security | helmet.js + CORS + rate-limit + Zod validation + Fail2Ban |
 
 ---
 
@@ -137,60 +137,94 @@ ADDON_WEBHOOK_SECRET=<addon webhook secret from Razorpay>
 | Website contact form | ✅ | POST /api/contact |
 | Tawk.to live chat | ✅ | icaweb.in |
 | APLM white-label CRM | ✅ | crm.aplmsales.com LIVE |
-| **Telecaller Attendance** | ✅ | GPS punch in/out, radius check |
-| **Office Location Settings** | ✅ | Admin sets GPS + radius on Attendance page |
-| **Commission System** | ✅ | Auto-triggered on CONVERTED, per service or agency default |
-| **Service Commission** | ✅ | Per-service amount saved on Add Service |
-| **Polish with AI** | ✅ | Telecaller types remark → AI polishes it |
-| **Remarks line-clamp** | ✅ | Long remarks wrap to 2 lines on lead cards |
-| **Telecaller default filter** | ✅ | Leads page shows NEW by default for telecaller |
+| Telecaller Attendance | ✅ | GPS punch in/out, radius check |
+| Office Location Settings | ✅ | Admin sets GPS + radius |
+| Commission System | ✅ | Auto-triggered on CONVERTED |
+| Service Commission | ✅ | Per-service amount saved |
+| Polish with AI | ✅ | Telecaller types remark → AI polishes |
+| Remarks line-clamp | ✅ | Long remarks wrap to 2 lines |
+| Telecaller default filter | ✅ | Leads page shows NEW by default |
+| **Circuit pulse animation** | ✅ | Login page background animation |
+| **Telecaller commission summary** | ✅ | Leads page — Agency Admin view |
+| **Commission page grouped view** | ✅ | Telecaller-wise + Mark All Paid |
+| **Improved welcome email** | ✅ | Credentials + role onboarding steps |
+| **Login renewal card** | ✅ | Shows on expired subscription login |
+| **Self-service renewal** | ✅ | icaweb.in agency code field + auto-activate |
+| **Secure payment flow** | ✅ | Server-side order creation, amount fixed |
+| **Payment History recording** | ✅ | website-renew recorded in DB |
+| **Server security hardening** | ✅ | Fail2Ban + Nginx rate limit + ports blocked |
 
 ---
 
-## 🆕 v9.4 — Complete Feature Summary
+## 🆕 v9.5 — Feature Summary
 
-### Telecaller Attendance
-- GPS punch in/out via mobile browser
-- Agency Admin sets office GPS + radius (one-time setup)
-- "Use My Current Location" button on Attendance page
-- Telecaller blocked if outside office radius
-- Warning shown if office location not set
-- Role views: Telecaller (own) → TL (team) → Admin (all + settings)
+### Login Page — Circuit Pulse Animation
+- Canvas-based circuit board animation with electricity pulses
+- Blue glowing pulses travel along circuit lines with trail effect
+- Replaces particle animation — more premium engineering feel
+- Desktop only (mobile shows clean login)
 
-### Commission System
-- Auto-triggered when lead → CONVERTED
-- Service commission checked first → fallback to agency default
-- Full history per role with PENDING/PAID status
-- Agency Admin can mark commissions as PAID
-- Summary: Total Earned / Pending / Paid Out
+### Telecaller Commission Summary (Leads Page)
+- Agency Admin sees commission summary below stat cards
+- Shows: Telecaller | Total Converted | Commission On | Total Earned | Paid | Pending
+- Data pulled from commissions + leads tables (real converted count)
+- Auto-updates when commissions change
 
-### Polish with AI
-- Telecaller types their own remark in Update Lead dialog
-- Clicks "✨ Polish with AI" — AI improves grammar, tone, clarity
-- Telecaller reviews and clicks "Use" to apply
-- Works on PRO + ENTERPRISE plans
+### Commission Page — Telecaller-wise Grouping
+- Replaced per-lead rows with per-telecaller grouped view
+- Mark All Paid button — marks all pending commissions for a telecaller at once
+- Total row at bottom with agency-wide summary
+- Telecaller view (non-admin) still shows individual records
 
-### Other Fixes
-- Remarks on lead cards: `line-clamp-2` — wraps to 2 lines, Update button always visible
-- Telecaller leads page: default filter = NEW (not ALL)
-- Service commission saved correctly when adding new service
-- Commission trigger fires correctly on CONVERTED status change
+### Improved Welcome Email
+- Now includes login credentials (username + password in red box)
+- Role-specific onboarding steps (5 steps for Admin, 4 for Telecaller)
+- Login to ICA CRM Now button (CTA)
+- Sent for ALL roles — Agency Admin, Team Leader, Telecaller
+- Subject line varies by role
+
+### Login Renewal Card
+- When expired agency user tries to login — shows renewal card instead of toast error
+- Red 🔴 Subscription Expired message
+- Renew Subscription Now button → icaweb.in
+- WhatsApp Sameer to Renew button
+- Back to Login link
+
+### Self-Service Renewal Flow (icaweb.in)
+- Agency Code field added to payment form (existing customers)
+- After payment → auto-calls `/api/payments/website-renew`
+- Agency auto-activated (isActive=true, +30 days expiry) immediately
+- Payment recorded in Payment History with PAID status
+- Payment success email sent automatically
+- Amount field is readonly — server controls price, cannot be tampered
+
+### Secure Payment — Server-side Order Creation
+- New endpoint: `POST /api/payments/website-order`
+- icaweb.in calls backend to create Razorpay order with fixed plan price
+- User cannot change amount on frontend — Razorpay opens with server amount
+- BASIC=₹2,500 / PRO=₹5,500 / ENTERPRISE=₹12,000 — all enforced server-side
+
+### Server Security Hardening
+- Port 5000 + 5001 blocked from public (Nginx proxy still works)
+- Fail2Ban installed — bans IP after 5 failed SSH attempts for 24 hours
+- Nginx rate limiting: login=5r/min, API=30r/min
+- Applied to both ICA CRM and APLM CRM
 
 ---
 
 ## 🚀 Agency Onboarding Flow
 
 ```
-Step 1 — MASTER_ADMIN creates agency + admin
+Step 1 — MASTER_ADMIN creates agency + admin (welcome email auto-sent with credentials)
 Step 2 — Activate subscription
-Step 3 — Share credentials
-Step 4 — Agency Admin sets office location (Attendance page — one time)
-Step 5 — Agency Admin sets commission per service (Services page)
-Step 6 — Agency Admin sets default commission (Commission page)
-Step 7 — Team Leader adds leads → assigns to telecallers
-Step 8 — Telecallers punch in daily → call leads → update status
-Step 9 — On CONVERTED → commission auto-created
-Step 10 — Agency Admin marks commission as PAID when paying telecaller
+Step 3 — Agency Admin logs in → changes password → sets office location
+Step 4 — Agency Admin sets commission per service (Services page)
+Step 5 — Agency Admin sets default commission (Commission page)
+Step 6 — Team Leader adds leads → assigns to telecallers
+Step 7 — Telecallers punch in daily → call leads → update status
+Step 8 — On CONVERTED → commission auto-created
+Step 9 — Agency Admin marks commission as PAID when paying telecaller
+Step 10 — On renewal → agency pays on icaweb.in with agency code → auto-activates
 ```
 
 ---
@@ -209,14 +243,29 @@ Step 10 — Agency Admin marks commission as PAID when paying telecaller
 
 ### Syncing ICA → APLM (after changes)
 ```bash
-# Copy changed files
 cp /var/www/ica-crm/server/storage.ts /var/www/aplm-crm/server/storage.ts
 cp /var/www/ica-crm/server/routes.ts /var/www/aplm-crm/server/routes.ts
 cp /var/www/ica-crm/client/src/pages/leads.tsx /var/www/aplm-crm/client/src/pages/leads.tsx
+cp /var/www/ica-crm/client/src/pages/commission.tsx /var/www/aplm-crm/client/src/pages/commission.tsx
 # Fix APLM sidebar branding after copying app-sidebar.tsx
-# Build + restart
 cd /var/www/aplm-crm && npm run build && pm2 restart aplm-crm
 ```
+
+> **DO NOT copy:** login.tsx (APLM has own logo), app-sidebar.tsx (APLM has own branding)
+
+---
+
+## 🔒 Security Configuration
+
+| Protection | ICA CRM | APLM CRM |
+|-----------|---------|---------|
+| SSL/HTTPS | ✅ | ✅ |
+| Port 5000/5001 blocked | ✅ | ✅ |
+| .env / .git blocked | ✅ | ✅ |
+| Login rate limit (5/min) | ✅ | ✅ |
+| API rate limit (30/min) | ✅ | ✅ |
+| Fail2Ban SSH protection | ✅ | ✅ (same server) |
+| X-Real-IP forwarding | ✅ | ✅ |
 
 ---
 
@@ -239,6 +288,7 @@ pm2 restart ica-crm --update-env
 psql -U postgres -h localhost -d ica_crm
 psql -U postgres -h localhost -d ica_crm -c "SELECT * FROM attendance ORDER BY created_at DESC LIMIT 10;"
 psql -U postgres -h localhost -d ica_crm -c "SELECT * FROM commissions ORDER BY created_at DESC LIMIT 10;"
+psql -U postgres -h localhost -d ica_crm -c "SELECT name, agency_code, is_active, subscription_expiry FROM agencies;"
 
 # Git tags
 git tag -a vX.X -m "Description" && git push origin vX.X
@@ -254,6 +304,7 @@ git tag -a vX.X -m "Description" && git push origin vX.X
 | Backend routes | server/routes.ts |
 | Storage layer | server/storage.ts |
 | DB schema | shared/schema.ts |
+| Email templates | server/email.ts |
 | Login page | client/src/pages/login.tsx |
 | Leads page | client/src/pages/leads.tsx |
 | Attendance page | client/src/pages/attendance.tsx |
@@ -262,7 +313,24 @@ git tag -a vX.X -m "Description" && git push origin vX.X
 | Sidebar nav | client/src/components/app-sidebar.tsx |
 | App routes | client/src/App.tsx |
 | Nginx (CRM) | /etc/nginx/sites-enabled/ica-crm |
+| Nginx (APLM) | /etc/nginx/sites-enabled/aplm-crm |
 | Marketing website | /var/www/icaweb-in/index.html |
+| Fail2Ban config | /etc/fail2ban/jail.local |
+
+---
+
+## 📧 Email Triggers
+
+| Email | When Sent | Template |
+|-------|-----------|---------|
+| Welcome Email | User created (all roles) | Credentials + role onboarding steps + CTA button |
+| Prospect Inquiry | MASTER_ADMIN sends manually | Plan comparison + pricing |
+| Password Reset | Admin resets password | New temp password |
+| Plan Upgrade | Plan upgraded | New plan features |
+| Payment Link | Payment link sent | Amount + pay button |
+| Payment Success | Razorpay payment confirmed | Receipt + dashboard link |
+| Subscription Reminder | 7 days + 1 day before expiry | WhatsApp renew link |
+| Subscription Expired | On expiry day | Red header + renew button |
 
 ---
 
@@ -279,6 +347,8 @@ git tag -a vX.X -m "Description" && git push origin vX.X
 | Browser showing old UI | Hard refresh Ctrl+Shift+R or Incognito |
 | SSL expired | `certbot renew && systemctl reload nginx` |
 | APLM sidebar shows ICA | Re-apply branding after copying app-sidebar.tsx |
+| Agency not auto-activating after payment | Check website-renew endpoint logs — PM2 logs |
+| Payment not in history | Check razorpay_order_id unique constraint |
 
 ---
 
@@ -286,6 +356,7 @@ git tag -a vX.X -m "Description" && git push origin vX.X
 
 | Tag | Date | Description |
 |-----|------|-------------|
+| `v9.5` | Apr 1, 2026 | Circuit pulse login animation, commission summary on leads page, commission page telecaller grouping, improved welcome email, login renewal card, self-service renewal, secure server-side payment, payment history recording, server security hardening |
 | `v9.4` | Mar 30, 2026 | Attendance GPS, commission system, service commission, office location, Polish with AI, remarks wrap, telecaller default filter NEW |
 | `v9.3` | Mar 28, 2026 | Mobile responsive, PM2 fork, website contact form, Tawk.to, APLM white-label |
 | `v9.2` | Mar 25, 2026 | AI Suggest remark, Bulk WhatsApp, In Progress stat, Follow Up sort |
@@ -302,6 +373,8 @@ git tag -a vX.X -m "Description" && git push origin vX.X
 |------|----------|
 | Build aplmsales.com marketing website | 🔴 High |
 | RC API key (Surepass) — ₹25k deposit | 🔴 High |
+| Team Leader name column in commission (needs schema) | 🟡 Medium |
+| Automated DB backup (weekly) | 🟡 Medium |
 | Verify aplmsales.com domain in Resend | 🟡 Medium |
 | Auto-reply support@icaweb.in (ImprovMX) | 🟡 Medium |
 
@@ -311,8 +384,9 @@ git tag -a vX.X -m "Description" && git push origin vX.X
 
 | Version | Date | Changes |
 |---------|------|---------|
-| v9.4 | Mar 30, 2026 | GPS attendance (punch in/out, office location, radius check). Commission system (per service + agency default, auto-trigger on CONVERTED, mark as PAID). Polish with AI (replaces AI Suggest — telecaller types remark, AI polishes). Remarks line-clamp-2 on lead cards. Telecaller default leads filter = NEW. Service commission saved on Add Service. APLM CRM launched + all v9.4 features deployed. |
-| v9.3 | Mar 28, 2026 | Mobile responsive, PM2 fork, website contact form, Tawk.to, APLM white-label launched. |
+| v9.5 | Apr 1, 2026 | Circuit pulse login animation. Telecaller commission summary on leads page (total converted + commission on). Commission page telecaller-wise grouping + Mark All Paid. Improved welcome email (credentials, role onboarding steps, CTA). Login renewal card on expired subscription. Self-service renewal from icaweb.in with agency code. Secure server-side payment order (amount fixed, cannot be tampered). Payment History recording for website payments. Server security hardening (Fail2Ban, rate limiting, ports blocked). APLM CRM synced. |
+| v9.4 | Mar 30, 2026 | GPS attendance (punch in/out, office location settings, radius check). Commission system (per service + agency default, auto-trigger on CONVERTED, mark PAID). Polish with AI (replaces AI Suggest). Remarks line-clamp-2 on lead cards. Telecaller default leads filter = NEW. Service commission amount on Add Service. APLM CRM fully synced. |
+| v9.3 | Mar 28, 2026 | Mobile responsive all pages. PM2 fork mode. Website contact form. Tawk.to live chat. APLM white-label CRM launched at crm.aplmsales.com. |
 | v9.2 | Mar 25, 2026 | AI Suggest remark, Bulk WhatsApp, In Progress stat, Follow Up sort, firstContactedAt. |
 | v9.1 | Mar 21, 2026 | Agency Business Profile. |
 | v8.0 | Mar 18, 2026 | AI Suite — Smart Remarks, Follow-up, Lead Scoring, CRM Chatbot. |
@@ -322,4 +396,4 @@ git tag -a vX.X -m "Description" && git push origin vX.X
 
 ---
 
-*Last updated: March 30, 2026 | v9.4 | Sameer | ICA — Innovation, Consulting & Automation*
+*Last updated: April 1, 2026 | v9.5 | Sameer | ICA — Innovation, Consulting & Automation*
