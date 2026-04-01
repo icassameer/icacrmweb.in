@@ -2483,6 +2483,29 @@ ${businessContext4 ? `About this agency:\n${businessContext4}\n` : ""}${crmConte
     }
   });
 
+  // POST /api/payments/website-order — create order from icaweb.in (public, no auth)
+  app.post("/api/payments/website-order", async (req: Request, res: Response) => {
+    try {
+      const { plan, agencyCode, name, email } = req.body;
+      const planUpper = (plan || "").toUpperCase();
+      if (!planUpper || !PLAN_PRICES[planUpper]) {
+        return res.status(400).json({ success: false, message: "Invalid plan" });
+      }
+      const amount = PLAN_PRICES[planUpper];
+      const receipt = `web_${agencyCode || "new"}_${Date.now()}`;
+      const order = await razorpay.orders.create({
+        amount,
+        currency: "INR",
+        receipt,
+        notes: { agencyCode: agencyCode || "", plan: planUpper, name: name || "", email: email || "" },
+      });
+      res.json({ success: true, data: { orderId: order.id, amount, currency: "INR", keyId: process.env.RAZORPAY_KEY_ID, plan: planUpper } });
+    } catch (err: any) {
+      console.error("website-order error:", err);
+      res.status(500).json({ success: false, message: err.message });
+    }
+  });
+
   // POST /api/payments/website-renew — auto-activate after icaweb.in payment
   app.post("/api/payments/website-renew", async (req: Request, res: Response) => {
     try {
@@ -2499,6 +2522,19 @@ ${businessContext4 ? `About this agency:\n${businessContext4}\n` : ""}${crmConte
         plan, ...limits, planAssignedAt: new Date(),
         isActive: true, subscriptionExpiry: newExpiry
       });
+      // Record payment in payments table
+      const planAmounts: Record<string, number> = { BASIC: 250000, PRO: 550000, ENTERPRISE: 1200000 };
+      const planUpper = plan.toUpperCase();
+      await storage.createPayment({
+        agencyCode: agencyCode.toUpperCase(),
+        razorpayOrderId: razorpay_payment_id,
+        razorpayPaymentId: razorpay_payment_id,
+        amount: planAmounts[planUpper] || 0,
+        currency: "INR",
+        plan: planUpper,
+        status: "PAID",
+        createdBy: name || "website-renew",
+      });
       // Send payment success email
       try {
         const agencyUsers = await storage.getUsersByAgency(agencyCode);
@@ -2506,7 +2542,7 @@ ${businessContext4 ? `About this agency:\n${businessContext4}\n` : ""}${crmConte
         const toEmail = adminUser?.email || email;
         const toName = adminUser?.fullName || name;
         if (toEmail) {
-          await sendPaymentSuccessEmail(toEmail, toName, plan, 0, razorpay_payment_id);
+          await sendPaymentSuccessEmail(toEmail, toName, planUpper, planAmounts[planUpper] / 100 || 0, razorpay_payment_id);
         }
       } catch (emailErr) { console.error("Renewal email failed:", emailErr); }
       console.log(`[website-renew] Agency ${agencyCode} renewed on ${plan} until ${newExpiry}`);
