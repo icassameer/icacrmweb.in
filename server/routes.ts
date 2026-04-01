@@ -2459,7 +2459,9 @@ ${businessContext4 ? `About this agency:\n${businessContext4}\n` : ""}${crmConte
       const agency = await storage.getAgencyByCode(payment.agencyCode);
       if (agency) {
         const limits = PLAN_LIMITS[payment.plan] || {};
-        await storage.updateAgency(agency.id, { plan: payment.plan, ...limits, planAssignedAt: new Date() });
+        const newExpiry = new Date();
+        newExpiry.setDate(newExpiry.getDate() + 30);
+        await storage.updateAgency(agency.id, { plan: payment.plan, ...limits, planAssignedAt: new Date(), isActive: true, subscriptionExpiry: newExpiry });
         try {
           const agencyUsers = await storage.getUsersByAgency(payment.agencyCode);
           const adminUser = agencyUsers.find((u: any) => u.role === "AGENCY_ADMIN");
