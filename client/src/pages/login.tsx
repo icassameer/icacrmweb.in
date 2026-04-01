@@ -24,48 +24,67 @@ export default function LoginPage() {
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
     let animId: number;
+    type Line = { x1: number; y1: number; x2: number; y2: number; pulse: number; speed: number };
+    let lines: Line[] = [];
+    const buildLines = () => {
+      const W = canvas.width, H = canvas.height;
+      lines = Array.from({ length: 45 }, () => {
+        const horiz = Math.random() > 0.5;
+        const x1 = Math.random() * W;
+        const y1 = Math.random() * H;
+        const len = 80 + Math.random() * 200;
+        return {
+          x1, y1,
+          x2: horiz ? x1 + len : x1,
+          y2: horiz ? y1 : y1 + len,
+          pulse: Math.random(),
+          speed: 0.003 + Math.random() * 0.007,
+        };
+      });
+    };
     const resize = () => {
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;
+      buildLines();
     };
     resize();
     window.addEventListener("resize", resize);
-    const dots = Array.from({ length: 70 }, () => ({
-      x: Math.random() * window.innerWidth,
-      y: Math.random() * window.innerHeight,
-      vx: (Math.random() - 0.5) * 0.45,
-      vy: (Math.random() - 0.5) * 0.45,
-      r: Math.random() * 1.8 + 0.8,
-    }));
     const draw = () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      dots.forEach((d) => {
-        d.x += d.vx;
-        d.y += d.vy;
-        if (d.x < 0) d.x = canvas.width;
-        if (d.x > canvas.width) d.x = 0;
-        if (d.y < 0) d.y = canvas.height;
-        if (d.y > canvas.height) d.y = 0;
+      lines.forEach((l) => {
         ctx.beginPath();
-        ctx.arc(d.x, d.y, d.r, 0, Math.PI * 2);
-        ctx.fillStyle = "rgba(96,165,250,0.6)";
+        ctx.moveTo(l.x1, l.y1);
+        ctx.lineTo(l.x2, l.y2);
+        ctx.strokeStyle = "rgba(46,117,182,0.2)";
+        ctx.lineWidth = 0.8;
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(l.x1, l.y1, 2, 0, Math.PI * 2);
+        ctx.fillStyle = "rgba(46,117,182,0.45)";
         ctx.fill();
-      });
-      for (let i = 0; i < dots.length; i++) {
-        for (let j = i + 1; j < dots.length; j++) {
-          const dx = dots[i].x - dots[j].x;
-          const dy = dots[i].y - dots[j].y;
-          const dist = Math.sqrt(dx * dx + dy * dy);
-          if (dist < 100) {
-            ctx.beginPath();
-            ctx.moveTo(dots[i].x, dots[i].y);
-            ctx.lineTo(dots[j].x, dots[j].y);
-            ctx.strokeStyle = "rgba(96,165,250," + (0.15 * (1 - dist / 100)) + ")";
-            ctx.lineWidth = 0.5;
-            ctx.stroke();
-          }
+        ctx.beginPath();
+        ctx.arc(l.x2, l.y2, 2, 0, Math.PI * 2);
+        ctx.fillStyle = "rgba(46,117,182,0.45)";
+        ctx.fill();
+        const px = l.x1 + (l.x2 - l.x1) * l.pulse;
+        const py = l.y1 + (l.y2 - l.y1) * l.pulse;
+        const trail = 8;
+        for (let t = trail; t >= 1; t--) {
+          const tp = Math.max(0, l.pulse - t * 0.035);
+          const tx = l.x1 + (l.x2 - l.x1) * tp;
+          const ty = l.y1 + (l.y2 - l.y1) * tp;
+          ctx.beginPath();
+          ctx.arc(tx, ty, 1.5, 0, Math.PI * 2);
+          ctx.fillStyle = "rgba(96,165,250," + (0.15 * (trail - t) / trail) + ")";
+          ctx.fill();
         }
-      }
+        ctx.beginPath();
+        ctx.arc(px, py, 3, 0, Math.PI * 2);
+        ctx.fillStyle = "rgba(96,165,250,1)";
+        ctx.fill();
+        l.pulse += l.speed;
+        if (l.pulse > 1) l.pulse = 0;
+      });
       animId = requestAnimationFrame(draw);
     };
     draw();
