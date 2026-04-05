@@ -140,7 +140,11 @@ const subscriptionLoaded = !isMasterAdmin ? (!recordsLoading && !recordsFetching
   );
 
   const r = result;
-  const records = savedRecords?.data || [];
+  const records = (savedRecords?.data || []).sort((a: any, b: any) => {
+    const dateA = a.rcData?.insurance_details?.insurance_valid_upto ? new Date(a.rcData.insurance_details.insurance_valid_upto).getTime() : Infinity;
+    const dateB = b.rcData?.insurance_details?.insurance_valid_upto ? new Date(b.rcData.insurance_details.insurance_valid_upto).getTime() : Infinity;
+    return dateA - dateB;
+  });
 
   if (isMasterAdmin) {
     return (

@@ -1883,11 +1883,20 @@ Return ONLY valid JSON, no markdown, no explanation.`
 
       const apiData = await apiResponse.json();
 
-      if (apiData.error || !apiData.data?.result) {
+      if (!apiData.success || !apiData.data) {
         return res.status(400).json({ success: false, message: apiData.message || "Vehicle not found or invalid RC number." });
       }
 
-      const rcData = apiData.data.result;
+      const raw = apiData.data;
+      const rcData = {
+        rc_number: raw.rc_number,
+        vehicle_details: { maker: raw.maker_description, model: raw.maker_model, body_type: raw.body_type, fuel_type: raw.fuel_type, color: raw.color, cubic_capacity: raw.cubic_capacity, seat_capacity: raw.seat_capacity, cylinders: raw.no_cylinders, chassis_number: raw.vehicle_chasi_number, engine_number: raw.vehicle_engine_number, unladen_weight: raw.unladen_weight, fuel_norms: raw.norms_type, registration_date: raw.registration_date, manufactured_date: raw.manufacturing_date_formatted, fitness_upto: raw.fit_up_to, vehicle_category: raw.vehicle_category_description, rc_status: raw.rc_status },
+        owner_details: { name: raw.owner_name, father_name: raw.father_name, present_address: raw.present_address, permanent_address: raw.permanent_address, mobile: raw.mobile_number },
+        insurance_details: { insurance_company: raw.insurance_company, insurance_policy_no: raw.insurance_policy_no, insurance_valid_upto: raw.insurance_upto },
+        tax_details: { tax_upto: raw.tax_upto, tax_paid_upto: raw.tax_paid_upto },
+        pucc_details: { pucc_number: raw.pucc_number, pucc_upto: raw.pucc_upto },
+        financer: raw.financer, financed: raw.financed, blacklist_status: raw.blacklist_status, registered_at: raw.registered_at,
+      };
 
       // Save to database
       await storage.createRcRecord({
@@ -1905,7 +1914,7 @@ Return ONLY valid JSON, no markdown, no explanation.`
         action: `RC_LOOKUP: ${cleanRC}`,
         oldStatus: null,
         newStatus: null,
-        remarks: `Looked up RC: ${cleanRC} — ${rcData.vehicle_details?.maker} ${rcData.vehicle_details?.model}`,
+        remarks: `Looked up RC: ${cleanRC} — ${rcData.maker_description || ''} ${rcData.maker_model || ''}`,
         targetUserId: null,
       });
 
