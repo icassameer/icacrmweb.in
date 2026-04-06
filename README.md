@@ -25,7 +25,7 @@
 | **OS** | Ubuntu 24.04 LTS |
 | **Plan** | Micro — 2 vCPU, 4GB RAM, 40GB NVMe + 1GB Swap |
 | **Support Portal** | https://clients.hostbet.in/ |
-| **Current Version** | v9.8 |
+| **Current Version** | v9.8.5 |
 
 ---
 
@@ -54,10 +54,12 @@ ALLOWED_ORIGINS=https://crm.icaweb.in,https://icaweb.in,https://www.icaweb.in
 RESEND_API_KEY=<active — domain icaweb.in verified>
 FROM_EMAIL=support@icaweb.in
 FROM_NAME=ICA Team
-RC_API_KEY=<PENDING — Surepass Rs 25k deposit — NEXT MILESTONE>
+RC_API_KEY=<Surepass production key — LIVE>
+RC_API_URL=https://kyc-api.surepass.io/api/v1/rc/rc-full
 RAZORPAY_KEY_ID=<live key>
 RAZORPAY_KEY_SECRET=<live secret>
 ADDON_WEBHOOK_SECRET=<addon webhook secret from Razorpay>
+SARVAM_API_KEY=<active>
 ```
 
 ---
@@ -73,7 +75,7 @@ ADDON_WEBHOOK_SECRET=<addon webhook secret from Razorpay>
 | AI Suite | Anthropic Claude — Haiku (scoring/remarks) + Sonnet (chatbot) |
 | Email | Resend API — domain icaweb.in (Verified) |
 | Payments | Razorpay (live) — UPI, Cards, NetBanking, Wallets, EMI |
-| RC Lookup | Surepass API (UI ready — key pending Rs 25k deposit) |
+| RC Lookup | Surepass API (LIVE — production key active) |
 | Process Manager | PM2 fork mode (1 instance per app) |
 | Web Server | Nginx + SSL (Let's Encrypt — auto-renew cron active) |
 | Security | Fail2Ban + UFW + Nginx rate limiting + Zod + Single Session |
@@ -111,18 +113,26 @@ ADDON_WEBHOOK_SECRET=<addon webhook secret from Razorpay>
 
 ---
 
-## NEXT MILESTONE — RC Lookup Activation
+## ✅ RC Lookup — LIVE
 
-RC Lookup UI is fully built and tested. Only the Surepass API key is needed.
+RC Lookup is fully live using Surepass production API.
 
-| Step | Action |
+| Item | Detail |
 |------|--------|
-| 1 | Deposit Rs 25,000 to Surepass (https://surepass.io) |
-| 2 | Receive API key via email after deposit |
-| 3 | Add RC_API_KEY=key to /var/www/ica-crm/.env |
-| 4 | pm2 restart ica-crm --update-env |
-| 5 | Test: Agency Admin → RC Lookup → enter vehicle number |
-| 6 | Add same key to /var/www/aplm-crm/.env → restart aplm-crm |
+| **API Provider** | Surepass Technologies Pvt. Ltd. |
+| **Production URL** | https://kyc-api.surepass.io/api/v1/rc/rc-full |
+| **Account** | ica.ssameer_152413@surepass.io |
+| **Key expiry** | 2026-05-02 (sandbox token in console) |
+| **Data stored** | vehicle_details, owner_details, insurance_details, tax_details, pucc_details |
+| **Sort order** | Nearest insurance expiry first |
+| **Cache** | 24-hour cache — same RC number won't call API again within 24h |
+
+### Adding RC Key to new environment
+```bash
+echo 'RC_API_KEY=<key>' >> /var/www/<app>/.env
+echo 'RC_API_URL=https://kyc-api.surepass.io/api/v1/rc/rc-full' >> /var/www/<app>/.env
+pm2 restart <app> --update-env
+```
 
 ---
 
@@ -170,18 +180,40 @@ Step 12 — Renewal: pay on icaweb.in with agency code, auto-activates
 | **Database** | aplm_crm (separate) |
 | **Agency Admin** | Ram_mane (Parshuram Mane) — APLM-001 — ENTERPRISE |
 | **Team Leaders** | Rekha Ramesh Rudroj, P Mane (Pmane@aplmsales.com) |
-| **Current Version** | v9.7 (v9.8 attendance pending evening sync) |
+| **Current Version** | v9.8.4 (RC Lookup sync pending) |
+| **WhatsApp** | APLM Team — +91 8830242124 |
 
 ### Syncing ICA to APLM
 ```bash
+# Always diff first before copying
+diff /var/www/ica-crm/client/src/pages/<file>.tsx /var/www/aplm-crm/client/src/pages/<file>.tsx
+
 cp /var/www/ica-crm/server/routes.ts /var/www/aplm-crm/server/routes.ts
 cp /var/www/ica-crm/server/storage.ts /var/www/aplm-crm/server/storage.ts
 cp /var/www/ica-crm/shared/schema.ts /var/www/aplm-crm/shared/schema.ts
-cp /var/www/ica-crm/client/src/pages/attendance.tsx /var/www/aplm-crm/client/src/pages/attendance.tsx
 cd /var/www/aplm-crm && npm run db:push && npm run build && pm2 restart aplm-crm
 ```
 
 DO NOT copy: login.tsx (APLM has own logo), app-sidebar.tsx (APLM has own branding)
+
+### APLM Pending
+- Add RC_API_KEY and RC_API_URL to /var/www/aplm-crm/.env
+- Sync rc-lookup.tsx from ICA
+- Rebuild APLM
+
+---
+
+## Key Fixes & Patterns (v9.8.x)
+
+| Fix | Detail |
+|-----|--------|
+| Search focus | useRef + placeholderData on leads query — prevents input losing focus |
+| Follow-up date | toLocaleDateString('en-GB', {day:'numeric', month:'short', year:'numeric'}) |
+| Dashboard charts | CONTACTED status excluded — 4 statuses: New, Follow Up, Converted, Not Interested |
+| RC Lookup fetch | Uses raw fetch() with Bearer token — NOT apiFetch (which unwraps data.data) |
+| RC data transform | Surepass raw → nested vehicle_details/owner_details/insurance_details |
+| Eye toggle | All password fields — change-password.tsx and users.tsx reset dialog |
+| Commission backfill | SQL: INSERT commissions JOIN services ON name+agency_code for missing CONVERTED leads |
 
 ---
 
@@ -210,19 +242,23 @@ pm2 status
 pm2 logs ica-crm --lines 50 --nostream
 
 # Deploy ICA CRM
-git pull origin master && npm run build && pm2 restart ica-crm
+git pull origin master && npm run build && pm2 restart ica-crm --update-env
 
-# After adding RC_API_KEY to .env
-pm2 restart ica-crm --update-env
+# Deploy APLM CRM
+cd /var/www/aplm-crm && npm run build && pm2 restart aplm-crm --update-env
 
 # DB checks
 psql -U postgres -h localhost -d ica_crm -c "SELECT name, agency_code, plan, subscription_status FROM agencies;"
+psql -U postgres -h localhost -d aplm_crm -c "SELECT name, agency_code, plan, subscription_status FROM agencies;"
 
 # Fix TL leads after assignment (one-time)
 psql -U postgres -h localhost -d ica_crm -c "UPDATE leads SET team_leader_id = users.team_leader_id FROM users WHERE leads.assigned_to = users.id AND users.team_leader_id IS NOT NULL;"
 
+# Backfill missing commissions
+psql -U postgres -h localhost -d aplm_crm -c "INSERT INTO commissions (agency_code, user_id, lead_id, amount, paid_status) SELECT l.agency_code, l.assigned_to, l.id, s.commission_amount, 'PENDING' FROM leads l JOIN services s ON s.name = l.service AND s.agency_code = l.agency_code WHERE l.status = 'CONVERTED' AND l.id NOT IN (SELECT lead_id FROM commissions WHERE agency_code = 'APLM-001') AND l.service IS NOT NULL;"
+
 # Git tags
-git tag -a vX.X -m "Description" && git push origin vX.X
+git tag -a vX.X.X -m "Description" && git push origin vX.X.X
 ```
 
 ---
@@ -238,8 +274,11 @@ git tag -a vX.X -m "Description" && git push origin vX.X
 | Email templates | server/email.ts |
 | Login page | client/src/pages/login.tsx |
 | Leads page | client/src/pages/leads.tsx |
+| Dashboard | client/src/pages/dashboard.tsx |
+| RC Lookup | client/src/pages/rc-lookup.tsx |
 | Attendance page | client/src/pages/attendance.tsx |
 | Commission page | client/src/pages/commission.tsx |
+| Change Password | client/src/pages/change-password.tsx |
 | Services page | client/src/pages/services.tsx |
 | Users page | client/src/pages/users.tsx |
 | Reports page | client/src/pages/reports.tsx |
@@ -257,10 +296,11 @@ git tag -a vX.X -m "Description" && git push origin vX.X
 | Site not loading | pm2 restart ica-crm --update-env |
 | 502 Bad Gateway | curl http://localhost:5000/api/auth/me — rebuild if fails |
 | TL sees no leads | UPDATE leads SET team_leader_id = users.team_leader_id FROM users WHERE leads.assigned_to = users.id AND users.team_leader_id IS NOT NULL |
-| RC Lookup not working | Check RC_API_KEY in .env then pm2 restart ica-crm --update-env |
+| RC Lookup not working | Check RC_API_KEY + RC_API_URL in .env then pm2 restart ica-crm --update-env |
+| RC shows old data | 24h cache — delete from rc_records table to force fresh lookup |
 | Session expired | Normal — user logged in elsewhere. Re-login required. |
 | Punch-in blocked | Check office location set by Agency Admin |
-| Commission not created | Check lead has assignedTo + CONVERTED status |
+| Commission not created | Check lead has assignedTo + CONVERTED status + service assigned |
 | Browser showing old UI | Hard refresh Ctrl+Shift+R or Incognito |
 | SSL expired | certbot renew && systemctl reload nginx |
 | Build fails | rm -rf dist && npm run build |
@@ -271,6 +311,11 @@ git tag -a vX.X -m "Description" && git push origin vX.X
 
 | Tag | Date | Description |
 |-----|------|-------------|
+| `v9.8.5` | Apr 6, 2026 | RC Lookup LIVE — Surepass production API, persistence fix |
+| `v9.8.4` | Apr 6, 2026 | Dashboard chart fix — remove CONTACTED/In Progress, 4 clean statuses |
+| `v9.8.3` | Apr 6, 2026 | RC lookup response transform, sort by insurance expiry |
+| `v9.8.2` | Apr 6, 2026 | Eye toggle on reset/change password, APLM WhatsApp branding |
+| `v9.8.1` | Apr 3, 2026 | Search focus fix, follow-up date format, APLM favicon+title |
 | `v9.8` | Apr 2, 2026 | Attendance redesign, feature showcase on icaweb.in, demo agency seeded |
 | `v9.7` | Apr 1, 2026 | teamLeaderId schema, TL team isolation, edit TL UI, scoring fix |
 | `v9.6` | Apr 1, 2026 | Lead report TL+TC columns, single session, security hardening |
@@ -289,12 +334,12 @@ git tag -a vX.X -m "Description" && git push origin vX.X
 
 | Task | Priority |
 |------|----------|
-| RC API key (Surepass) — Rs 25,000 deposit | HIGH |
+| Sync RC Lookup to APLM (rc-lookup.tsx + .env keys) | HIGH |
 | Build aplmsales.com marketing website | HIGH |
-| Sync APLM to v9.8 (attendance) | MEDIUM — evening |
 | Automated weekly DB backup | MEDIUM |
 | Verify aplmsales.com domain in Resend | MEDIUM |
 | Auto-reply support@icaweb.in (ImprovMX) | MEDIUM |
+| Sarvam Batch API upgrade (60-min files + diarization) | LOW |
 
 ---
 
@@ -310,4 +355,4 @@ git tag -a vX.X -m "Description" && git push origin vX.X
 
 ---
 
-*Last updated: April 2, 2026 | v9.8 | Sameer Bagwan | ICA — Innovation, Consulting & Automation*
+*Last updated: April 6, 2026 | v9.8.5 | Sameer Bagwan | ICA — Innovation, Consulting & Automation*
