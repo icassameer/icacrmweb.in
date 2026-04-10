@@ -323,8 +323,6 @@ export async function registerRoutes(
       });
 
       res.json({ success: true, message: "User approved" });
-
-      res.json({ success: true, message: "User approved" });
     } catch (error: any) {
       console.error(error);
       res.status(500).json({ success: false, message: "Internal server error" });
@@ -2095,16 +2093,18 @@ Return ONLY valid JSON, no markdown, no explanation.`
     }
   });
 
-  // GET /api/addons/balance?agencyCode=xxx
+  // GET /api/addons/balance?agencyCode=xxx — public (used by icaweb.in)
   app.get("/api/addons/balance", async (req: Request, res: Response) => {
     try {
       const { agencyCode } = req.query;
-      if (!agencyCode) return res.status(400).json({ success: false, message: "agencyCode required" });
-      const agency = await storage.getAgencyByCode(agencyCode as string);
+      if (!agencyCode || typeof agencyCode !== "string" || !/^[A-Z0-9]{3,20}$/.test(agencyCode.toUpperCase())) {
+        return res.status(400).json({ success: false, message: "Invalid agencyCode" });
+      }
+      const agency = await storage.getAgencyByCode(agencyCode.toUpperCase());
       if (!agency) return res.status(404).json({ success: false, message: "Agency not found" });
       res.json({ success: true, data: { rcAddonCredits: (agency as any).rcAddonCredits || 0, aiAddonCredits: (agency as any).aiAddonCredits || 0 } });
-    } catch (error: any) {
-      res.status(500).json({ success: false, message: error.message });
+    } catch {
+      res.status(500).json({ success: false, message: "Internal server error" });
     }
   });
 
@@ -2112,7 +2112,8 @@ Return ONLY valid JSON, no markdown, no explanation.`
   app.post("/api/addons/webhook", express.raw({ type: "application/json" }), async (req: Request, res: Response) => {
     try {
       const signature = req.headers["x-razorpay-signature"] as string;
-      const addonSecret = process.env.ADDON_WEBHOOK_SECRET || process.env.RAZORPAY_KEY_SECRET!;
+      const addonSecret = process.env.ADDON_WEBHOOK_SECRET!;
+      if (!addonSecret) { console.error("ADDON_WEBHOOK_SECRET not set"); return res.status(500).json({ success: false }); }
       const expectedSig = crypto.createHmac("sha256", addonSecret).update(req.body).digest("hex");
       if (expectedSig !== signature) return res.status(400).json({ success: false });
       const event = JSON.parse(req.body.toString());
@@ -2378,6 +2379,13 @@ ${businessContext4 ? `About this agency:\n${businessContext4}\n` : ""}${crmConte
       const { name, phone, email, interest, message } = req.body;
       if (!name || !phone) return res.status(400).json({ success: false, message: "Name and phone required" });
 
+      const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+      const safeName = esc(String(name));
+      const safePhone = esc(String(phone));
+      const safeEmail = email ? esc(String(email)) : "—";
+      const safeInterest = interest ? esc(String(interest)) : "—";
+      const safeMessage = message ? esc(String(message)) : "—";
+
       const html = `
         <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:24px;background:#f9f9f9;border-radius:12px;">
           <div style="background:#0d1b4b;padding:20px 24px;border-radius:8px 8px 0 0;">
@@ -2386,11 +2394,11 @@ ${businessContext4 ? `About this agency:\n${businessContext4}\n` : ""}${crmConte
           </div>
           <div style="background:#ffffff;padding:24px;border-radius:0 0 8px 8px;border:1px solid #e5e5e5;border-top:none;">
             <table style="width:100%;border-collapse:collapse;">
-              <tr><td style="padding:10px 0;border-bottom:1px solid #f0f0f0;color:#666;font-size:13px;width:120px;">Name</td><td style="padding:10px 0;border-bottom:1px solid #f0f0f0;font-weight:600;font-size:14px;">${name}</td></tr>
-              <tr><td style="padding:10px 0;border-bottom:1px solid #f0f0f0;color:#666;font-size:13px;">Phone</td><td style="padding:10px 0;border-bottom:1px solid #f0f0f0;font-weight:600;font-size:14px;"><a href="tel:${phone}" style="color:#0d1b4b;">${phone}</a></td></tr>
-              <tr><td style="padding:10px 0;border-bottom:1px solid #f0f0f0;color:#666;font-size:13px;">Email</td><td style="padding:10px 0;border-bottom:1px solid #f0f0f0;font-size:14px;">${email || "—"}</td></tr>
-              <tr><td style="padding:10px 0;border-bottom:1px solid #f0f0f0;color:#666;font-size:13px;">Interest</td><td style="padding:10px 0;border-bottom:1px solid #f0f0f0;font-size:14px;"><span style="background:#e8f5e9;color:#2e7d32;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600;">${interest || "—"}</span></td></tr>
-              <tr><td style="padding:10px 0;color:#666;font-size:13px;">Message</td><td style="padding:10px 0;font-size:14px;color:#333;">${message || "—"}</td></tr>
+              <tr><td style="padding:10px 0;border-bottom:1px solid #f0f0f0;color:#666;font-size:13px;width:120px;">Name</td><td style="padding:10px 0;border-bottom:1px solid #f0f0f0;font-weight:600;font-size:14px;">${safeName}</td></tr>
+              <tr><td style="padding:10px 0;border-bottom:1px solid #f0f0f0;color:#666;font-size:13px;">Phone</td><td style="padding:10px 0;border-bottom:1px solid #f0f0f0;font-weight:600;font-size:14px;"><a href="tel:${safePhone}" style="color:#0d1b4b;">${safePhone}</a></td></tr>
+              <tr><td style="padding:10px 0;border-bottom:1px solid #f0f0f0;color:#666;font-size:13px;">Email</td><td style="padding:10px 0;border-bottom:1px solid #f0f0f0;font-size:14px;">${safeEmail}</td></tr>
+              <tr><td style="padding:10px 0;border-bottom:1px solid #f0f0f0;color:#666;font-size:13px;">Interest</td><td style="padding:10px 0;border-bottom:1px solid #f0f0f0;font-size:14px;"><span style="background:#e8f5e9;color:#2e7d32;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600;">${safeInterest}</span></td></tr>
+              <tr><td style="padding:10px 0;color:#666;font-size:13px;">Message</td><td style="padding:10px 0;font-size:14px;color:#333;">${safeMessage}</td></tr>
             </table>
             <div style="margin-top:20px;padding:12px 16px;background:#e8f5e9;border-radius:8px;font-size:13px;color:#2e7d32;">
               <strong>Quick Reply:</strong> <a href="WALINK" style="color:#2e7d32;">Reply on WhatsApp →</a>
@@ -2400,9 +2408,9 @@ ${businessContext4 ? `About this agency:\n${businessContext4}\n` : ""}${crmConte
         </div>`;
 
       const cleanPhone = phone.replace(/[^0-9]/g, '');
-      const waLink = `https://wa.me/91${cleanPhone}?text=Hi%20${name}%2C%20thanks%20for%20your%20interest%20in%20ICA%20CRM!`;
+      const waLink = `https://wa.me/91${cleanPhone}?text=Hi%20${encodeURIComponent(String(name))}%2C%20thanks%20for%20your%20interest%20in%20ICA%20CRM!`;
       const finalHtml = html.replace('WALINK', waLink);
-      const sent = await sendEmail("support@icaweb.in", `New Inquiry: ${name} — ${interest || "ICA Products"}`, finalHtml);
+      const sent = await sendEmail("support@icaweb.in", `New Inquiry: ${safeName} — ${safeInterest}`, finalHtml);
       console.log(`Contact form: ${name} ${phone} — email sent: ${sent}`);
       res.json({ success: true, message: "Inquiry received" });
     } catch (error: any) {
@@ -2634,29 +2642,53 @@ ${businessContext4 ? `About this agency:\n${businessContext4}\n` : ""}${crmConte
   });
 
   // POST /api/payments/website-renew — auto-activate after icaweb.in payment
+  // Secured: verifies payment is real and captured via Razorpay API before activating
   app.post("/api/payments/website-renew", async (req: Request, res: Response) => {
     try {
       const { agencyCode, plan, razorpay_payment_id, email, name } = req.body;
       if (!agencyCode || !plan || !razorpay_payment_id) {
         return res.status(400).json({ success: false, message: "Missing fields" });
       }
+      const planAmounts: Record<string, number> = { BASIC: 250000, PRO: 550000, ENTERPRISE: 1200000 };
+      const planUpper = plan.toUpperCase();
+      if (!planAmounts[planUpper]) {
+        return res.status(400).json({ success: false, message: "Invalid plan" });
+      }
+
+      // Verify payment with Razorpay — never trust client-provided payment IDs alone
+      let rzpPayment: any;
+      try {
+        rzpPayment = await razorpay.payments.fetch(razorpay_payment_id);
+      } catch {
+        return res.status(400).json({ success: false, message: "Payment not found" });
+      }
+      if (rzpPayment.status !== "captured") {
+        return res.status(400).json({ success: false, message: "Payment not captured" });
+      }
+      if (rzpPayment.amount !== planAmounts[planUpper] || rzpPayment.currency !== "INR") {
+        return res.status(400).json({ success: false, message: "Payment amount mismatch" });
+      }
+
+      // Idempotency: skip if this payment was already processed
+      const existing = await storage.getPaymentByOrderId(razorpay_payment_id);
+      if (existing && existing.status === "PAID") {
+        return res.status(409).json({ success: false, message: "Payment already processed" });
+      }
+
       const agency = await storage.getAgencyByCode(agencyCode.toUpperCase());
       if (!agency) return res.status(404).json({ success: false, message: "Agency not found" });
-      const limits = PLAN_LIMITS[plan] || {};
+      const limits = PLAN_LIMITS[planUpper] || {};
       const newExpiry = new Date();
       newExpiry.setDate(newExpiry.getDate() + 30);
       await storage.updateAgency(agency.id, {
-        plan, ...limits, planAssignedAt: new Date(),
+        plan: planUpper, ...limits, planAssignedAt: new Date(),
         isActive: true, subscriptionExpiry: newExpiry
       });
-      // Record payment in payments table
-      const planAmounts: Record<string, number> = { BASIC: 250000, PRO: 550000, ENTERPRISE: 1200000 };
-      const planUpper = plan.toUpperCase();
       await storage.createPayment({
         agencyCode: agencyCode.toUpperCase(),
-        razorpayOrderId: razorpay_payment_id,
+        razorpayOrderId: rzpPayment.order_id || razorpay_payment_id,
         razorpayPaymentId: razorpay_payment_id,
-        amount: planAmounts[planUpper] || 0,
+        amount: planAmounts[planUpper],
         currency: "INR",
         plan: planUpper,
         status: "PAID",
@@ -2669,14 +2701,14 @@ ${businessContext4 ? `About this agency:\n${businessContext4}\n` : ""}${crmConte
         const toEmail = adminUser?.email || email;
         const toName = adminUser?.fullName || name;
         if (toEmail) {
-          await sendPaymentSuccessEmail(toEmail, toName, planUpper, planAmounts[planUpper] / 100 || 0, razorpay_payment_id);
+          await sendPaymentSuccessEmail(toEmail, toName, planUpper, planAmounts[planUpper] / 100, razorpay_payment_id);
         }
       } catch (emailErr) { console.error("Renewal email failed:", emailErr); }
-      console.log(`[website-renew] Agency ${agencyCode} renewed on ${plan} until ${newExpiry}`);
+      console.log(`[website-renew] Agency ${agencyCode} renewed on ${planUpper} until ${newExpiry}`);
       res.json({ success: true, message: "Agency renewed successfully" });
     } catch (err: any) {
       console.error("website-renew error:", err);
-      res.status(500).json({ success: false, message: err.message });
+      res.status(500).json({ success: false, message: "Renewal failed" });
     }
   });
 

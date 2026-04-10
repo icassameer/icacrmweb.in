@@ -28,8 +28,6 @@ app.use(
         defaultSrc: ["'self'"],
         scriptSrc: [
           "'self'",
-          "'unsafe-inline'",
-          "'unsafe-eval'",
           "https://checkout.razorpay.com",
           "https://cdn.razorpay.com",
           "https://static.cloudflareinsights.com",
