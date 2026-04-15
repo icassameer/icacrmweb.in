@@ -294,7 +294,7 @@ export async function registerRoutes(
 
   app.post("/api/users/approve/:id", authMiddleware, roleMiddleware("MASTER_ADMIN", "AGENCY_ADMIN"), async (req: AuthRequest, res: Response) => {
     try {
-      const targetUser = await storage.getUser(req.params.id);
+      const targetUser = await storage.getUser(req.params.id as string);
       if (!targetUser) return res.status(404).json({ success: false, message: "User not found" });
 
       if (req.user!.role === "AGENCY_ADMIN" && targetUser.agencyCode !== req.user!.agencyCode) {
@@ -313,13 +313,13 @@ export async function registerRoutes(
         if (agencyCode) updateData.agencyCode = agencyCode;
       }
 
-      await storage.updateUser(req.params.id, updateData);
+      await storage.updateUser(req.params.id as string, updateData);
 
       await storage.createAuditLog({
         agencyCode: targetUser.agencyCode || req.user!.agencyCode || "SYSTEM",
         leadId: null, userId: req.user!.id,
         action: "USER_APPROVED", oldStatus: "PENDING_APPROVAL", newStatus: "ACTIVE",
-        remarks: `User approved by ${req.user!.role}${updateData.role ? ` as ${updateData.role}` : ''}`, targetUserId: req.params.id,
+        remarks: `User approved by ${req.user!.role}${updateData.role ? ` as ${updateData.role}` : ''}`, targetUserId: req.params.id as string,
       });
 
       res.json({ success: true, message: "User approved" });
@@ -331,14 +331,14 @@ export async function registerRoutes(
 
   app.post("/api/users/reject/:id", authMiddleware, roleMiddleware("MASTER_ADMIN", "AGENCY_ADMIN"), async (req: AuthRequest, res: Response) => {
     try {
-      const targetUser = await storage.getUser(req.params.id);
+      const targetUser = await storage.getUser(req.params.id as string);
       if (!targetUser) return res.status(404).json({ success: false, message: "User not found" });
 
       if (req.user!.role === "AGENCY_ADMIN" && targetUser.agencyCode !== req.user!.agencyCode) {
         return res.status(403).json({ success: false, message: "Cannot reject users from another agency" });
       }
 
-      await storage.updateUser(req.params.id, { status: "INACTIVE", isActive: false });
+      await storage.updateUser(req.params.id as string, { status: "INACTIVE", isActive: false });
       res.json({ success: true, message: "User rejected" });
     } catch (error: any) {
       console.error(error);
@@ -380,7 +380,7 @@ export async function registerRoutes(
 
   app.patch("/api/agencies/:id", authMiddleware, roleMiddleware("MASTER_ADMIN"), async (req: AuthRequest, res: Response) => {
     try {
-      const updated = await storage.updateAgency(req.params.id, req.body);
+      const updated = await storage.updateAgency(req.params.id as string, req.body);
       if (!updated) return res.status(404).json({ success: false, message: "Agency not found" });
       res.json({ success: true, data: updated });
     } catch (error: any) {
@@ -391,9 +391,9 @@ export async function registerRoutes(
 
   app.delete("/api/agencies/:id", authMiddleware, roleMiddleware("MASTER_ADMIN"), async (req: AuthRequest, res: Response) => {
     try {
-      const agency = await storage.getAgency(req.params.id);
+      const agency = await storage.getAgency(req.params.id as string);
       if (!agency) return res.status(404).json({ success: false, message: "Agency not found" });
-      await storage.deleteAgency(req.params.id);
+      await storage.deleteAgency(req.params.id as string);
       res.json({ success: true, message: "Agency and all associated data deleted" });
     } catch (error: any) {
       console.error(error);
@@ -497,7 +497,7 @@ export async function registerRoutes(
 
   app.patch("/api/users/:id", authMiddleware, roleMiddleware("MASTER_ADMIN", "AGENCY_ADMIN"), async (req: AuthRequest, res: Response) => {
     try {
-      const targetUser = await storage.getUser(req.params.id);
+      const targetUser = await storage.getUser(req.params.id as string);
       if (!targetUser) return res.status(404).json({ success: false, message: "User not found" });
 
       if (req.user!.role === "AGENCY_ADMIN" && targetUser.agencyCode !== req.user!.agencyCode) {
@@ -512,7 +512,7 @@ export async function registerRoutes(
       if (data.password) {
         data.password = await bcrypt.hash(data.password, 10);
       }
-      const updated = await storage.updateUser(req.params.id, data);
+      const updated = await storage.updateUser(req.params.id as string, data);
       if (!updated) return res.status(404).json({ success: false, message: "User not found" });
       const { password: _, ...safeUser } = updated;
       res.json({ success: true, data: safeUser });
@@ -524,12 +524,12 @@ export async function registerRoutes(
 
   app.delete("/api/users/:id", authMiddleware, roleMiddleware("MASTER_ADMIN"), async (req: AuthRequest, res: Response) => {
     try {
-      const targetUser = await storage.getUser(req.params.id);
+      const targetUser = await storage.getUser(req.params.id as string);
       if (!targetUser) return res.status(404).json({ success: false, message: "User not found" });
       if (targetUser.role === "MASTER_ADMIN") {
         return res.status(403).json({ success: false, message: "Cannot delete Master Admin" });
       }
-      await storage.deleteUser(req.params.id);
+      await storage.deleteUser(req.params.id as string);
       res.json({ success: true, message: "User deleted successfully" });
     } catch (error: any) {
       console.error(error);
@@ -594,7 +594,7 @@ export async function registerRoutes(
 
   app.patch("/api/leads/:id", authMiddleware, async (req: AuthRequest, res: Response) => {
     try {
-      const lead = await storage.getLead(req.params.id);
+      const lead = await storage.getLead(req.params.id as string);
       if (!lead) return res.status(404).json({ success: false, message: "Lead not found" });
 
       if (req.user!.agencyCode && lead.agencyCode !== req.user!.agencyCode) {
@@ -626,7 +626,7 @@ export async function registerRoutes(
       if (oldStatus === "NEW" && updateData.status && updateData.status !== "NEW" && !lead.firstContactedAt) {
         updateData.firstContactedAt = new Date();
       }
-      const updated = await storage.updateLead(req.params.id, updateData);
+      const updated = await storage.updateLead(req.params.id as string, updateData);
       if (req.body.status === "CONVERTED" && oldStatus !== "CONVERTED" && lead.assignedTo) {
         try {
           const agency = await storage.getAgencyByCode(lead.agencyCode);
@@ -679,12 +679,12 @@ export async function registerRoutes(
 
   app.delete("/api/leads/:id", authMiddleware, roleMiddleware("TEAM_LEADER"), async (req: AuthRequest, res: Response) => {
     try {
-      const lead = await storage.getLead(req.params.id);
+      const lead = await storage.getLead(req.params.id as string);
       if (!lead) return res.status(404).json({ success: false, message: "Lead not found" });
       if (lead.agencyCode !== req.user!.agencyCode) {
         return res.status(403).json({ success: false, message: "Access denied" });
       }
-      await storage.deleteLead(req.params.id);
+      await storage.deleteLead(req.params.id as string);
       res.json({ success: true, message: "Lead deleted" });
     } catch (error: any) {
       console.error(error);
@@ -886,7 +886,7 @@ export async function registerRoutes(
 
   app.delete("/api/services/:id", authMiddleware, roleMiddleware("AGENCY_ADMIN"), async (req: AuthRequest, res: Response) => {
     try {
-      await storage.deleteService(req.params.id);
+      await storage.deleteService(req.params.id as string);
       res.json({ success: true, message: "Service deleted" });
     } catch (error: any) {
       console.error(error);
@@ -899,7 +899,7 @@ export async function registerRoutes(
     try {
       const { commissionAmount } = req.body;
       if (commissionAmount === undefined) return res.status(400).json({ success: false, message: "commissionAmount required" });
-      const updated = await storage.updateService(req.params.id, { commissionAmount: Number(commissionAmount) });
+      const updated = await storage.updateService(req.params.id as string, { commissionAmount: Number(commissionAmount) });
       res.json({ success: true, data: updated });
     } catch (error: any) {
       console.error(error);
@@ -1056,7 +1056,7 @@ export async function registerRoutes(
   // v9.4 — Commissions: Mark as paid (Agency Admin only)
   app.patch("/api/commissions/:id/paid", authMiddleware, roleMiddleware("AGENCY_ADMIN"), async (req: AuthRequest, res: Response) => {
     try {
-      const updated = await storage.updateCommission(req.params.id, { paidStatus: "PAID", paidAt: new Date() });
+      const updated = await storage.updateCommission(req.params.id as string, { paidStatus: "PAID", paidAt: new Date() });
       res.json({ success: true, data: updated });
     } catch (error: any) {
       console.error(error);
@@ -1131,10 +1131,10 @@ export async function registerRoutes(
         return res.status(400).json({ success: false, message: "Invalid status" });
       }
 
-      const request = await storage.getUpgradeRequest(req.params.id);
+      const request = await storage.getUpgradeRequest(req.params.id as string);
       if (!request) return res.status(404).json({ success: false, message: "Request not found" });
 
-      await storage.updateUpgradeRequest(req.params.id, { status });
+      await storage.updateUpgradeRequest(req.params.id as string, { status });
 
       if (status === "APPROVED") {
         const agency = await storage.getAgencyByCode(request.agencyCode);
@@ -1422,7 +1422,7 @@ export async function registerRoutes(
 
   // GET /api/meetings/job/:jobId — check background job status (DB-backed, works across PM2 cluster)
   app.get("/api/meetings/job/:jobId", authMiddleware, async (req: AuthRequest, res: Response) => {
-    const job = await storage.getJob(req.params.jobId);
+    const job = await storage.getJob(req.params.jobId as string);
     if (!job) return res.status(404).json({ success: false, message: "Job not found" });
     res.json({ success: true, status: job.status, progress: job.progress, message: job.message, result: job.result, error: job.error });
   });
@@ -1723,9 +1723,9 @@ Return ONLY valid JSON, no markdown, no explanation.`
 
   app.delete("/api/meetings/:id", authMiddleware, roleMiddleware("MASTER_ADMIN"), async (req: AuthRequest, res: Response) => {
     try {
-      const meeting = await storage.getMeeting(req.params.id);
+      const meeting = await storage.getMeeting(req.params.id as string);
       if (!meeting) return res.status(404).json({ success: false, message: "Meeting not found" });
-      await storage.deleteMeeting(req.params.id);
+      await storage.deleteMeeting(req.params.id as string);
       res.json({ success: true, message: "Meeting deleted" });
     } catch (error: any) {
       console.error(error);
@@ -1997,7 +1997,7 @@ Return ONLY valid JSON, no markdown, no explanation.`
   // DELETE /api/rc-lookup/:id — MASTER_ADMIN delete RC record
   app.delete("/api/rc-lookup/:id", authMiddleware, roleMiddleware("MASTER_ADMIN"), async (req: AuthRequest, res: Response) => {
     try {
-      await storage.deleteRcRecord(req.params.id);
+      await storage.deleteRcRecord(req.params.id as string);
       res.json({ success: true, message: "RC record deleted" });
     } catch (error: any) {
       console.error(error);
