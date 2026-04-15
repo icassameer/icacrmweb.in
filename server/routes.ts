@@ -1909,16 +1909,30 @@ Return ONLY valid JSON, no markdown, no explanation.`
         body: JSON.stringify({ id_number: cleanRC }),
       });
 
-      if (!apiResponse.ok) {
-        const errBody = await apiResponse.text();
-        console.error("RC API error:", apiResponse.status, errBody);
-        return res.status(apiResponse.status).json({ success: false, message: "RC API request failed. Please try again." });
+      const apiData = await apiResponse.json().catch(() => null);
+
+      if (!apiResponse.ok || !apiData?.success) {
+        const status = apiData?.status_code || apiResponse.status;
+        const msgCode = apiData?.message_code;
+        const apiMsg = apiData?.message;
+        console.error("RC API error:", apiResponse.status, JSON.stringify(apiData));
+
+        let userMessage: string;
+        if (status === 422 || msgCode === "verification_failed" || apiMsg === "Verification Failed.") {
+          userMessage = "Invalid or unregistered RC number. Please check the number and try again.";
+        } else if (status === 500 && (msgCode === "backend_down" || apiMsg === "Backend Down.")) {
+          userMessage = "RC lookup service is temporarily unavailable. Please try again in a few minutes.";
+        } else if (status === 401 || status === 403) {
+          userMessage = "RC lookup API authentication failed. Please contact administrator.";
+        } else {
+          userMessage = apiMsg || "RC API request failed. Please try again.";
+        }
+
+        return res.status(status >= 400 && status < 600 ? status : 500).json({ success: false, message: userMessage });
       }
 
-      const apiData = await apiResponse.json();
-
-      if (!apiData.success || !apiData.data) {
-        return res.status(400).json({ success: false, message: apiData.message || "Vehicle not found or invalid RC number." });
+      if (!apiData.data) {
+        return res.status(400).json({ success: false, message: "Vehicle not found or invalid RC number." });
       }
 
       const raw = apiData.data;
