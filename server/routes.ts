@@ -1520,7 +1520,6 @@ YOUR TWO TASKS:
 
 Return ONLY valid JSON (no markdown, no explanation, no preamble):
 {
-  "diarizedTranscript": "Speaker 1: ...\nSpeaker 2: ...",
   "summary": "5-8 sentence summary covering: who spoke, purpose of call/meeting, key points discussed, decisions made, and outcome",
   "targets": ["specific target or goal with numbers/timeline if mentioned"],
   "achievements": ["achievement or milestone with data"],
@@ -1539,7 +1538,7 @@ Return ONLY valid JSON (no markdown, no explanation, no preamble):
                   },
                   {
                     role: "user",
-                    content: `Meeting Title: ${title}\n\nRaw Transcript:\n${transcript.length > 12000 ? transcript.slice(0, 12000) + "\n\n[transcript truncated for analysis — full version saved separately]" : transcript}`
+                    content: `Meeting Title: ${title}\n\nRaw Transcript:\n${transcript.length > 5000 ? transcript.slice(0, 5000) + "\n\n[transcript truncated — only first portion sent for diarization]" : transcript}`
                   }
                 ],
                 temperature: 0.2,
@@ -1549,9 +1548,11 @@ Return ONLY valid JSON (no markdown, no explanation, no preamble):
               const raw = gptResponse.choices[0]?.message?.content?.trim() || "{}";
               const cleaned = raw.replace(/```json|```/g, "").trim();
               const parsed = JSON.parse(cleaned);
-
               if (parsed.diarizedTranscript?.trim()) {
-                diarizedTranscript = parsed.diarizedTranscript;
+                // GPT cleaned first portion — append raw remainder if transcript was truncated
+                const gptPortion = parsed.diarizedTranscript;
+                const rawRemainder = transcript.length > 5000 ? "\n\n[...]\n\n" + transcript.slice(5000) : "";
+                diarizedTranscript = gptPortion + rawRemainder;
               }
               const { diarizedTranscript: _dt, ...insightsOnly } = parsed;
               aiInsights = insightsOnly;

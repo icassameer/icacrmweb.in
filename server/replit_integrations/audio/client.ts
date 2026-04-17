@@ -314,14 +314,26 @@ async function transcribeWithSarvam(
     for (let i = 0; i < chunkFiles.length; i++) {
       const chunkBuffer = await readFile(chunkFiles[i]);
       console.log(`Sarvam chunk ${i+1}/${chunkFiles.length}...`);
-      try {
-        const chunkTranscript = await callSarvamAPI(chunkBuffer, "mp3", languageCode, sarvamKey);
-        if (chunkTranscript.trim()) transcripts.push(chunkTranscript.trim());
-      } catch (err: any) {
-        console.error(`Sarvam chunk ${i+1} failed: ${err.message}`);
+      // Retry with exponential backoff for 429 rate limit errors
+      let lastErr: any;
+      for (let attempt = 0; attempt < 4; attempt++) {
+        try {
+          const chunkTranscript = await callSarvamAPI(chunkBuffer, "mp3", languageCode, sarvamKey);
+          if (chunkTranscript.trim()) transcripts.push(chunkTranscript.trim());
+          lastErr = null;
+          break;
+        } catch (err: any) {
+          lastErr = err;
+          if (err.message.includes("429") && attempt < 3) {
+            const wait = (attempt + 1) * 8000; // 8s, 16s, 24s
+            console.log(`Sarvam chunk ${i+1} rate limited, retrying in ${wait/1000}s...`);
+            await new Promise(r => setTimeout(r, wait));
+          } else break;
+        }
       }
-      // Small delay to avoid rate limiting
-      await new Promise(r => setTimeout(r, 300));
+      if (lastErr) console.error(`Sarvam chunk ${i+1} failed: ${lastErr.message}`);
+      // 7s delay between chunks to stay within Sarvam free tier (~8 req/min)
+      await new Promise(r => setTimeout(r, 7000));
     }
 
     const merged = transcripts.join(" ");
