@@ -429,34 +429,57 @@ export async function speechToText(
 }
 
 /**
- * Remove repeated phrases from Whisper output.
- * Whisper commonly hallucinates by repeating the same phrase dozens of times
- * especially for Marathi/Hindi audio with silence or low-quality sections.
+ * Remove repeated phrases from Whisper/Sarvam output.
+ * Uses sliding-window n-gram dedup to catch all hallucination patterns:
+ * - Single word loops:  "बहुत बहुत बहुत बहुत..."
+ * - Short phrase loops: "कराईच कराईच कराईच..."
+ * - Long phrase loops:  "घड़कर बोलते हैं, कारण घड़कर बोलते हैं, कारण..."
  */
 function removeRepetitions(text: string): string {
   if (!text) return text;
 
-  // Step 1: Remove exact duplicate sentences
-  const sentences = text.split(/[.?!]+/).map(l => l.trim()).filter(l => l.length > 3);
+  // Step 1: Quick regex pass — collapse consecutive identical word runs (3+ → keep 2)
+  text = text.replace(/([ऀ-ॿ\w]+)((?:[\s,،]+){2,})/g, (_m, w) => `${w} ${w}`);
+
+  // Step 2: Sliding-window n-gram deduplication
+  // Detects phrases of 1–12 tokens repeated 3+ times consecutively → keeps 1 copy
+  const tokens = text.split(/\s+/).filter(Boolean);
+  const out: string[] = [];
+  let i = 0;
+  while (i < tokens.length) {
+    let found = false;
+    const maxLen = Math.min(12, Math.floor((tokens.length - i) / 3));
+    for (let len = maxLen; len >= 1; len--) {
+      const chunk = tokens.slice(i, i + len);
+      const chunkKey = chunk.join(" ").toLowerCase().replace(/[,،।]/g, "");
+      let reps = 1;
+      let j = i + len;
+      while (j + len <= tokens.length) {
+        const nextKey = tokens.slice(j, j + len).join(" ").toLowerCase().replace(/[,،।]/g, "");
+        if (nextKey === chunkKey) { reps++; j += len; } else break;
+      }
+      if (reps >= 3) {
+        out.push(...chunk);   // keep exactly 1 copy
+        i = j;
+        found = true;
+        break;
+      }
+    }
+    if (!found) { out.push(tokens[i]); i++; }
+  }
+  let result = out.join(" ");
+
+  // Step 3: Deduplicate exact sentences
+  const sentences = result.split(/(?<=[.?!।])\s+/).map(s => s.trim()).filter(s => s.length > 5);
   const seen = new Set<string>();
   const deduped: string[] = [];
-  for (const sentence of sentences) {
-    const normalized = sentence.toLowerCase().replace(/\s+/g, " ").trim();
-    if (!seen.has(normalized)) {
-      seen.add(normalized);
-      deduped.push(sentence);
-    }
+  for (const s of sentences) {
+    const key = s.toLowerCase().replace(/\s+/g, " ").trim();
+    if (!seen.has(key)) { seen.add(key); deduped.push(s); }
   }
-  let result = deduped.join(" ");
+  result = deduped.join(" ");
 
-  // Step 2: Remove any phrase (4+ words) repeated 2+ times consecutively
-  result = result.replace(/(\S+(?:\s+\S+){3,})(?:\s+)+/g, "$1");
-
-  // Step 3: Remove any phrase (3+ words) repeated 3+ times anywhere
-  result = result.replace(/(\S+(?:\s+\S+){2,})(?:\s+){2,}/g, "$1");
-
-  // Step 4: Truncate if still too long after dedup (likely hallucination)
-  // Allow up to 6000 words to support long meetings (48 min ≈ 6200 words at normal speaking pace)
+  // Step 4: Truncate if still too long (remaining hallucination)
   const words = result.split(/\s+/);
   if (words.length > 8000) {
     result = words.slice(0, 6000).join(" ") + " [transcript truncated — audio may contain silence or noise at end]";

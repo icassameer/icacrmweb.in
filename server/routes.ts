@@ -1492,23 +1492,24 @@ export async function registerRoutes(
                 messages: [
                   {
                     role: "system",
-                    content: `You are an expert multilingual meeting analyst for a business CRM platform.
-You will receive a raw transcript from a meeting or phone call. The audio may contain Hindi, Marathi, English, Hinglish, or any mix of these languages within the same sentence.
+                    content: `You are an expert multilingual meeting analyst and transcription assistant for a business CRM platform.
+You will receive a raw Whisper transcript from a phone call or meeting. The audio may be in Hindi, Marathi, English, Hinglish, or mixed languages.
 
 YOUR TWO TASKS:
-1. Clean the raw transcript text
+1. Clean & reformat the transcript with accurate speaker labels
 2. Extract structured business insights
 
-═══ TRANSCRIPT CLEANING RULES ═══
-- DO NOT add speaker labels or try to identify who is speaking — output as continuous clean text
-- PRESERVE the exact original language of every sentence — do NOT translate any Hindi/Marathi/Hinglish/English to another language
-- When a speaker switches language mid-sentence (code-switching), preserve both parts exactly as spoken
-- Fix obvious transcription errors using surrounding context clues
-- Remove filler words: "umm", "uhh", repeated stutters, false starts
-- De-duplicate repeated sentences (transcription engines sometimes repeat)
+═══ TRANSCRIPTION CLEANING RULES ═══
+- Carefully identify distinct speakers from conversation flow (who asks vs who answers, topic shifts, tone)
+- Label speakers as "Speaker 1:", "Speaker 2:" etc. If real names/roles are mentioned (e.g. "Rahul bhai", "Sir"), use those
+- PRESERVE the exact original language — do NOT translate Hindi/Marathi/Hinglish to English
+- Fix obvious Whisper errors (wrong words that don't fit context) using surrounding context
+- Remove filler words: "umm", "uhh", "acha acha", repeated stutters
+- De-duplicate repeated sentences (Whisper sometimes repeats)
 - Mark truly unclear parts as [unclear]
-- Preserve Devanagari script exactly as-is
-- Output clean flowing paragraphs separated by blank lines, grouped by topic shifts
+- For phone calls: one party is often the agent/caller, other is client — label accordingly if evident
+- Maintain natural paragraph breaks between speaker turns
+- If Devanagari script is present, preserve it exactly as-is
 
 ═══ INSIGHT EXTRACTION RULES ═══
 - Extract ONLY what is explicitly mentioned — never fabricate or assume
@@ -1519,8 +1520,8 @@ YOUR TWO TASKS:
 
 Return ONLY valid JSON (no markdown, no explanation, no preamble):
 {
-  "diarizedTranscript": "<cleaned transcript as continuous paragraphs, no speaker labels>",
-  "summary": "5-8 sentence summary covering: who participated, purpose of call/meeting, key points discussed, decisions made, and outcome",
+  "diarizedTranscript": "Speaker 1: ...\nSpeaker 2: ...",
+  "summary": "5-8 sentence summary covering: who spoke, purpose of call/meeting, key points discussed, decisions made, and outcome",
   "targets": ["specific target or goal with numbers/timeline if mentioned"],
   "achievements": ["achievement or milestone with data"],
   "responsiblePersons": ["Name/Role - their responsibility or commitment"],
