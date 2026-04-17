@@ -97,16 +97,26 @@ export default function MeetingsPage() {
       if (audioFile) formData.append("audio", audioFile);
 
       // Use XHR instead of fetch to track upload progress for large files
+      if (audioFile) {
+        setJobProgress({ progress: 1, message: "📤 Uploading audio... 0%" });
+      }
       const data = await new Promise<any>((resolve, reject) => {
         const xhr = new XMLHttpRequest();
         if (audioFile) {
           xhr.upload.onprogress = (event) => {
             if (event.lengthComputable) {
-              const pct = Math.round((event.loaded / event.total) * 45);
+              const uploadPct = Math.round((event.loaded / event.total) * 100);
+              const pct = Math.max(1, Math.round(uploadPct * 0.45));
               setJobProgress({
                 progress: pct,
-                message: `📤 Uploading audio... ${Math.round((event.loaded / event.total) * 100)}%`,
+                message: `📤 Uploading audio... ${uploadPct}%`,
               });
+            } else {
+              // lengthComputable false — show animated indeterminate progress
+              setJobProgress(prev => ({
+                progress: Math.min((prev?.progress ?? 1) + 1, 44),
+                message: "📤 Uploading audio...",
+              }));
             }
           };
         }
