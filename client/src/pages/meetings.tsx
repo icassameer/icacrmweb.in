@@ -331,7 +331,7 @@ export default function MeetingsPage() {
                       <Input
                         ref={fileRef}
                         type="file"
-                        accept="audio/*,.mp3,.wav,.m4a,.ogg,.webm"
+                        accept="audio/*,video/mp4,.mp3,.wav,.m4a,.mp4,.ogg,.webm"
                         data-testid="input-audio-file"
                         onChange={(e) => setAudioFile(e.target.files?.[0] || null)}
                       />
