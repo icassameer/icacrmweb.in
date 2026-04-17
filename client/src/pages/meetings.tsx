@@ -119,6 +119,10 @@ export default function MeetingsPage() {
               }));
             }
           };
+          xhr.upload.onloadend = () => {
+            // Upload bytes fully sent — now waiting for server to respond
+            setJobProgress({ progress: 46, message: "⏳ Upload complete, waiting for server..." });
+          };
         }
         xhr.onload = () => {
           try {
