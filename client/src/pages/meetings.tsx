@@ -132,11 +132,11 @@ export default function MeetingsPage() {
             }
           }, 3000);
 
-          // Timeout after 10 minutes
+          // Timeout after 25 minutes (large files like 48-min recordings need more time)
           setTimeout(() => {
             clearInterval(interval);
             reject(new Error("Processing timed out. Please try again."));
-          }, 10 * 60 * 1000);
+          }, 25 * 60 * 1000);
         });
       }
 
@@ -351,7 +351,7 @@ export default function MeetingsPage() {
                           />
                         </div>
                         <p className="text-xs text-muted-foreground text-center">
-                          ⏱️ Large audio files (5-15 min) take 2-4 minutes to process. Please wait...
+                          ⏱️ Large audio files (5-15 min) take 2-4 minutes. Files up to 48 min may take 10-15 minutes. Please wait...
                         </p>
                       </div>
                     )}

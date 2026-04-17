@@ -456,10 +456,10 @@ function removeRepetitions(text: string): string {
   result = result.replace(/(\S+(?:\s+\S+){2,})(?:\s+){2,}/g, "$1");
 
   // Step 4: Truncate if still too long after dedup (likely hallucination)
+  // Allow up to 6000 words to support long meetings (48 min ≈ 6200 words at normal speaking pace)
   const words = result.split(/\s+/);
-  if (words.length > 800) {
-    // Find where repetition likely started by checking word density
-    result = words.slice(0, 600).join(" ") + " [transcript truncated — audio may contain silence or noise at end]";
+  if (words.length > 8000) {
+    result = words.slice(0, 6000).join(" ") + " [transcript truncated — audio may contain silence or noise at end]";
   }
 
   return result.trim();
