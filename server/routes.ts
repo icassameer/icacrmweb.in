@@ -1539,11 +1539,11 @@ Return ONLY valid JSON (no markdown, no explanation, no preamble):
                   },
                   {
                     role: "user",
-                    content: `Meeting Title: ${title}\n\nRaw Transcript:\n${transcript}`
+                    content: `Meeting Title: ${title}\n\nRaw Transcript:\n${transcript.length > 12000 ? transcript.slice(0, 12000) + "\n\n[transcript truncated for analysis — full version saved separately]" : transcript}`
                   }
                 ],
                 temperature: 0.2,
-                max_tokens: 4000,
+                max_tokens: 8000,
               });
 
               const raw = gptResponse.choices[0]?.message?.content?.trim() || "{}";
