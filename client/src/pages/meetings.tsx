@@ -96,17 +96,41 @@ export default function MeetingsPage() {
       if (transcript) formData.append("transcript", transcript);
       if (audioFile) formData.append("audio", audioFile);
 
-      const res = await fetch("/api/meetings", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-        body: formData,
+      // Use XHR instead of fetch to track upload progress for large files
+      const data = await new Promise<any>((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        if (audioFile) {
+          xhr.upload.onprogress = (event) => {
+            if (event.lengthComputable) {
+              const pct = Math.round((event.loaded / event.total) * 45);
+              setJobProgress({
+                progress: pct,
+                message: `📤 Uploading audio... ${Math.round((event.loaded / event.total) * 100)}%`,
+              });
+            }
+          };
+        }
+        xhr.onload = () => {
+          try {
+            const response = JSON.parse(xhr.responseText);
+            if (xhr.status >= 200 && xhr.status < 300 && response.success) {
+              resolve(response);
+            } else {
+              reject(new Error(response.message || "Upload failed"));
+            }
+          } catch { reject(new Error("Invalid server response")); }
+        };
+        xhr.onerror = () => reject(new Error("Upload failed. Please check your connection."));
+        xhr.onabort = () => reject(new Error("Upload cancelled."));
+        xhr.open("POST", "/api/meetings");
+        xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+        xhr.send(formData);
       });
-      const data = await res.json();
       if (!data.success) throw new Error(data.message);
 
       // If audio file — poll for background job completion
       if (audioFile && data.jobId) {
-        setJobProgress({ progress: 10, message: "🎵 Audio uploaded, processing started..." });
+        setJobProgress({ progress: 50, message: "🎵 Audio uploaded, processing started..." });
         const jobId = data.jobId;
 
         // Poll every 3 seconds
