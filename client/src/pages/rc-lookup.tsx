@@ -190,9 +190,18 @@ const subscriptionLoaded = !isMasterAdmin ? (!recordsLoading && !recordsFetching
   };
   const r = result;
   const records = (savedRecords?.data || []).sort((a: any, b: any) => {
-    const dateA = a.rcData?.insurance_details?.insurance_valid_upto ? new Date(a.rcData.insurance_details.insurance_valid_upto).getTime() : Infinity;
-    const dateB = b.rcData?.insurance_details?.insurance_valid_upto ? new Date(b.rcData.insurance_details.insurance_valid_upto).getTime() : Infinity;
-    return dateA - dateB;
+    const now = Date.now();
+    const dateA = a.rcData?.insurance_details?.insurance_valid_upto ? new Date(a.rcData.insurance_details.insurance_valid_upto).getTime() : null;
+    const dateB = b.rcData?.insurance_details?.insurance_valid_upto ? new Date(b.rcData.insurance_details.insurance_valid_upto).getTime() : null;
+    if (dateA === null && dateB === null) return 0;
+    if (dateA === null) return 1;
+    if (dateB === null) return -1;
+    const aExpired = dateA <= now;
+    const bExpired = dateB <= now;
+    // Expired vehicles first (most recently expired at top), future vehicles last (soonest to expire first)
+    if (aExpired && bExpired) return dateB - dateA; // both expired: most recent first
+    if (!aExpired && !bExpired) return dateA - dateB; // both future: soonest first
+    return aExpired ? -1 : 1; // expired before future
   });
 
   if (isMasterAdmin) {
@@ -467,7 +476,9 @@ Team ICA
                     </div>
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
                       <Calendar className="w-3 h-3" />
-                      {new Date(record.createdAt).toLocaleDateString()}
+                      {record.rcData?.insurance_details?.insurance_valid_upto
+                        ? <>Ins. exp: {new Date(record.rcData.insurance_details.insurance_valid_upto).toLocaleDateString("en-IN")}</>
+                        : "No insurance data"}
                     </div>
                   </div>
                 </CardContent>
