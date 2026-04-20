@@ -1902,18 +1902,27 @@ Return ONLY valid JSON, no markdown, no explanation.`
         return res.status(503).json({ success: false, message: "RC lookup API not configured. Please contact administrator to add RC_API_KEY." });
       }
 
-      // Call RC lookup API (Surepass or similar)
-      const apiUrl = process.env.RC_API_URL || "https://kyc-api.surepass.io/api/v1/rc/rc-full";
-      const apiResponse = await fetch(apiUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({ id_number: cleanRC }),
-      });
+      // Call RC lookup API — try primary, fall back to RCV2 on backend_down
+      const rcCallApi = async (url: string) => {
+        const resp = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "Authorization": `Bearer ${apiKey}` },
+          body: JSON.stringify({ id_number: cleanRC }),
+        });
+        const data = await resp.json().catch(() => null);
+        return { resp, data };
+      };
 
-      const apiData = await apiResponse.json().catch(() => null);
+      const primaryUrl = process.env.RC_API_URL || "https://kyc-api.surepass.io/api/v1/rc/rc-full";
+      const rcv2Url = process.env.RC_API_V2_URL || "https://kyc-api.surepass.io/api/v1/rc/rc-v2";
+
+      let { resp: apiResponse, data: apiData } = await rcCallApi(primaryUrl);
+
+      // Auto-fallback to RCV2 when primary returns backend_down
+      if (!apiData?.success && (apiData?.message_code === "backend_down" || apiData?.message === "Backend Down.")) {
+        console.log(`RC primary backend_down for ${cleanRC}, retrying with RCV2`);
+        ({ resp: apiResponse, data: apiData } = await rcCallApi(rcv2Url));
+      }
 
       if (!apiResponse.ok || !apiData?.success) {
         const status = apiData?.status_code || apiResponse.status;
