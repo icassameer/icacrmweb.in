@@ -95,7 +95,7 @@ const subscriptionLoaded = !isMasterAdmin ? (!recordsLoading && !recordsFetching
       if (data.success) {
         setResult(data.data);
         queryClient.invalidateQueries({ queryKey: ["/api/rc-records"] });
-        toast({ title: data.cached ? "Returned from cache (within 24h)" : "RC details fetched and saved!" });
+        toast({ title: "RC details fetched successfully!" });
       } else {
         toast({ title: "Lookup failed", description: data.message, variant: "destructive" });
       }
