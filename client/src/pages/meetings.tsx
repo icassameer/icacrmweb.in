@@ -34,6 +34,7 @@ export default function MeetingsPage() {
   const [creating, setCreating] = useState(false);
   const [audioLanguage, setAudioLanguage] = useState("auto");
   const [jobProgress, setJobProgress] = useState<{ progress: number; message: string } | null>(null);
+  const [jobDone, setJobDone] = useState(false);
   const [agencyFilter, setAgencyFilter] = useState("all");
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -180,19 +181,14 @@ export default function MeetingsPage() {
 
       queryClient.invalidateQueries({ queryKey: ["/api/meetings"] });
       queryClient.invalidateQueries({ queryKey: ["/api/meetings/usage"] });
-      setOpen(false);
-      setTitle("");
-      setTranscript("");
-      setAudioFile(null);
-      setJobProgress(null);
-      if (fileRef.current) fileRef.current.value = "";
-      toast({ title: "✅ AI Proceeding analysis complete!" });
+      setJobProgress({ progress: 100, message: "✅ Analysis complete!" });
+      setJobDone(true);
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
       queryClient.invalidateQueries({ queryKey: ["/api/meetings/usage"] });
     } finally {
       setCreating(false);
-      setJobProgress(null);
+      if (!jobDone) setJobProgress(null);
     }
   };
 
@@ -388,9 +384,25 @@ export default function MeetingsPage() {
                             style={{ width: `${jobProgress.progress}%` }}
                           />
                         </div>
-                        <p className="text-xs text-muted-foreground text-center">
-                          ⏱️ Large audio files (5-15 min) take 2-4 minutes. Files up to 48 min may take 10-15 minutes. Please wait...
-                        </p>
+                        {!jobDone && (
+                          <p className="text-xs text-muted-foreground text-center">
+                            ⏱️ Large audio files (5-15 min) take 2-4 minutes. Files up to 48 min may take 10-15 minutes. Please wait...
+                          </p>
+                        )}
+                        {jobDone && (
+                          <div className="text-center space-y-3 pt-1">
+                            <p className="text-sm text-green-600 font-medium">Your AI Proceeding analysis is ready. Click OK to view the results.</p>
+                            <Button className="w-full" onClick={() => {
+                              setOpen(false);
+                              setTitle("");
+                              setTranscript("");
+                              setAudioFile(null);
+                              setJobProgress(null);
+                              setJobDone(false);
+                              if (fileRef.current) fileRef.current.value = "";
+                            }}>OK</Button>
+                          </div>
+                        )}
                       </div>
                     )}
 
@@ -500,7 +512,7 @@ export default function MeetingsPage() {
                       )}
                       <Badge variant="secondary" className="text-[10px]">
                         <Calendar className="w-3 h-3 mr-1" />
-                        {new Date(meeting.createdAt).toLocaleDateString()}
+                        {new Date(meeting.createdAt).toLocaleDateString("en-IN")} {new Date(meeting.createdAt).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}
                       </Badge>
                       {meeting.audioFileName && (
                         <Badge variant="outline" className="text-[10px]">

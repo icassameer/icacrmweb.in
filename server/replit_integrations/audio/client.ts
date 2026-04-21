@@ -450,18 +450,18 @@ export async function speechToText(
 function removeRepetitions(text: string): string {
   if (!text) return text;
 
-  // Step 1: Quick regex pass — collapse consecutive identical word runs (3+ → keep 2)
-  text = text.replace(/([ऀ-ॿ\w]+)((?:[\s,،]+){2,})/g, (_m, w) => `${w} ${w}`);
+  // Step 1: Collapse any single word repeated 3+ times consecutively → keep 1
+  text = text.replace(/(\S+)((?:\s+\1){2,})/g, '$1');
 
-  // Step 2: Sliding-window n-gram deduplication
-  // Detects phrases of 1–12 tokens repeated 3+ times consecutively → keeps 1 copy
+  // Step 2: Sliding-window n-gram deduplication — iterate ASCENDING (small→large)
+  // so short repeating phrases (e.g. "हो यार," len=2) are caught before larger chunks
   const tokens = text.split(/\s+/).filter(Boolean);
   const out: string[] = [];
   let i = 0;
   while (i < tokens.length) {
     let found = false;
-    const maxLen = Math.min(12, Math.floor((tokens.length - i) / 3));
-    for (let len = maxLen; len >= 1; len--) {
+    const maxLen = Math.min(15, Math.floor((tokens.length - i) / 3));
+    for (let len = 1; len <= maxLen; len++) {
       const chunk = tokens.slice(i, i + len);
       const chunkKey = chunk.join(" ").toLowerCase().replace(/[,،।]/g, "");
       let reps = 1;
@@ -480,6 +480,9 @@ function removeRepetitions(text: string): string {
     if (!found) { out.push(tokens[i]); i++; }
   }
   let result = out.join(" ");
+
+  // Step 1 again: catch any residual single-word runs left after step 2
+  result = result.replace(/(\S+)((?:\s+\1){2,})/g, '$1');
 
   // Step 3: Deduplicate exact sentences
   const sentences = result.split(/(?<=[.?!।])\s+/).map(s => s.trim()).filter(s => s.length > 5);
