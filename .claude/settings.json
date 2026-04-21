@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl -s -X POST http://localhost:8080/api/auth/login -H 'Content-Type: application/json' -d '{\"email\":\"admin@demo.com\",\"password\":\"Admin@123\"}')",
+      "Bash(PGPASSWORD='IcaCrm@2055' psql -U postgres -h 127.0.0.1 -d inventopro -c \"SELECT COUNT\\(*\\) FROM users;\")",
+      "Bash(PGPASSWORD='IcaCrm@2055' psql -U postgres -h 127.0.0.1 -d ica_crm -c \"SELECT 1;\")"
+    ]
+  }
+}

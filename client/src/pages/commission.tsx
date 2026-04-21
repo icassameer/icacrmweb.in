@@ -8,11 +8,16 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { IndianRupee, CheckCircle, Clock, Users, Settings, TrendingUp } from "lucide-react";
+import { IndianRupee, CheckCircle, Clock, Users, Settings, TrendingUp, Calendar } from "lucide-react";
 import { useApi } from "@/hooks/use-api";
 
 function formatDate(ts: string) {
   return new Date(ts).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+}
+
+function monthKey(ts: string) {
+  const d = new Date(ts);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
 
 export default function CommissionPage() {
@@ -23,6 +28,9 @@ export default function CommissionPage() {
   const role = user?.role;
   const [defaultCommission, setDefaultCommission] = useState("");
   const [savingSettings, setSavingSettings] = useState(false);
+  const currentMonth = new Date().toISOString().slice(0, 7);
+  const [selectedMonth, setSelectedMonth] = useState(currentMonth);
+  const [selectedEmployee, setSelectedEmployee] = useState("ALL");
 
   const { data: commissions, isLoading } = useQuery({
     queryKey: ["/api/commissions"],
@@ -71,8 +79,21 @@ export default function CommissionPage() {
     }
   };
 
-  const totalEarned = (commissions || []).reduce((sum: number, c: any) => sum + (c.amount || 0), 0);
-  const totalPaid = (commissions || []).filter((c: any) => c.paidStatus === "PAID").reduce((sum: number, c: any) => sum + (c.amount || 0), 0);
+  // Build employee list from all commissions for the dropdown
+  const allEmployees: Record<string, string> = {};
+  (commissions || []).forEach((c: any) => {
+    if (c.userId) allEmployees[c.userId] = c.userName || c.telecallerName || "Unknown";
+  });
+
+  // Filter by selected month + employee
+  const filtered = (commissions || []).filter((c: any) => {
+    const inMonth = monthKey(c.convertedAt) === selectedMonth;
+    const inEmployee = selectedEmployee === "ALL" || c.userId === selectedEmployee;
+    return inMonth && inEmployee;
+  });
+
+  const totalEarned = filtered.reduce((sum: number, c: any) => sum + (c.amount || 0), 0);
+  const totalPaid = filtered.filter((c: any) => c.paidStatus === "PAID").reduce((sum: number, c: any) => sum + (c.amount || 0), 0);
   const totalPending = totalEarned - totalPaid;
 
   return (
@@ -82,6 +103,34 @@ export default function CommissionPage() {
         <p className="text-sm text-muted-foreground mt-1">
           {role === "TELE_CALLER" ? "Track your earned commissions" : "Manage team commissions and payouts"}
         </p>
+      </div>
+
+      {/* Filters */}
+      <div className="flex items-center gap-3 flex-wrap">
+        <div className="flex items-center gap-2">
+          <Calendar className="w-4 h-4 text-muted-foreground" />
+          <input
+            type="month"
+            value={selectedMonth}
+            onChange={(e) => { setSelectedMonth(e.target.value); setSelectedEmployee("ALL"); }}
+            className="border rounded-md px-3 py-1.5 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+          />
+        </div>
+        {(role === "AGENCY_ADMIN" || role === "TEAM_LEADER") && (
+          <div className="flex items-center gap-2">
+            <Users className="w-4 h-4 text-muted-foreground" />
+            <select
+              value={selectedEmployee}
+              onChange={(e) => setSelectedEmployee(e.target.value)}
+              className="border rounded-md px-3 py-1.5 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+            >
+              <option value="ALL">All Employees</option>
+              {Object.entries(allEmployees).sort((a, b) => a[1].localeCompare(b[1])).map(([id, name]) => (
+                <option key={id} value={id}>{name}</option>
+              ))}
+            </select>
+          </div>
+        )}
       </div>
 
       {/* Summary Cards */}
@@ -139,7 +188,7 @@ export default function CommissionPage() {
         </Card>
       )}
 
-      {/* Commission Table */}
+      {/* Commission Records */}
       <Card>
         <CardHeader>
           <CardTitle className="text-sm font-medium flex items-center gap-2">
@@ -150,23 +199,21 @@ export default function CommissionPage() {
         <CardContent className="p-0">
           {isLoading ? (
             <div className="p-4 space-y-2">{[1,2,3].map(i => <Skeleton key={i} className="h-12" />)}</div>
-          ) : !commissions || commissions.length === 0 ? (
+          ) : filtered.length === 0 ? (
             <div className="p-8 text-center">
               <IndianRupee className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
-              <p className="text-sm text-muted-foreground">No commissions yet</p>
-              <p className="text-xs text-muted-foreground mt-1">Commissions are earned when a lead is converted</p>
+              <p className="text-sm text-muted-foreground">No commissions for this period</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
               {(role === "AGENCY_ADMIN" || role === "TEAM_LEADER") ? (() => {
-                const grouped: Record<string, { name: string; ids: string[]; pendingIds: string[]; total: number; pending: number; paid: number; commissionOn: number; totalConverted: number }> = {};
-                commissions.forEach((c: any) => {
+                const grouped: Record<string, any> = {};
+                filtered.forEach((c: any) => {
                   const key = c.userId;
-                  if (!grouped[key]) grouped[key] = { name: c.userName || c.telecallerName || "Unknown", teamLeaderName: c.teamLeaderName || "—", ids: [], pendingIds: [], total: 0, pending: 0, paid: 0, commissionOn: 0, totalConverted: c.totalConverted || 0 };
+                  if (!grouped[key]) grouped[key] = { name: c.userName || c.telecallerName || "Unknown", teamLeaderName: c.teamLeaderName || "—", ids: [], pendingIds: [], total: 0, pending: 0, paid: 0, commissionOn: 0 };
                   grouped[key].ids.push(c.id);
                   grouped[key].total += c.amount || 0;
                   grouped[key].commissionOn += 1;
-                  grouped[key].totalConverted = c.totalConverted || grouped[key].totalConverted;
                   if (c.paidStatus === "PENDING") { grouped[key].pending += c.amount || 0; grouped[key].pendingIds.push(c.id); }
                   else grouped[key].paid += c.amount || 0;
                 });
@@ -177,7 +224,6 @@ export default function CommissionPage() {
                       <tr className="border-b bg-muted/30">
                         <th className="text-left p-3 font-medium text-muted-foreground">Telecaller</th>
                         <th className="text-left p-3 font-medium text-muted-foreground">Team Leader</th>
-                        <th className="text-center p-3 font-medium text-muted-foreground">Total Converted</th>
                         <th className="text-center p-3 font-medium text-muted-foreground">Commission On</th>
                         <th className="text-right p-3 font-medium text-muted-foreground">Total Earned</th>
                         <th className="text-right p-3 font-medium text-muted-foreground text-green-600">Paid</th>
@@ -186,15 +232,10 @@ export default function CommissionPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {rows.map((r, i) => (
+                      {rows.map((r: any, i: number) => (
                         <tr key={i} className="border-b hover:bg-muted/20 transition-colors">
                           <td className="p-3 font-semibold">{r.name}</td>
-                          <td className="p-3 text-sm text-muted-foreground">{(r as any).teamLeaderName || "—"}</td>
-                          <td className="p-3 text-center">
-                            <span className="inline-flex items-center gap-1 bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 text-xs px-2 py-0.5 rounded-full">
-                              <TrendingUp className="w-3 h-3" />{r.totalConverted}
-                            </span>
-                          </td>
+                          <td className="p-3 text-sm text-muted-foreground">{r.teamLeaderName}</td>
                           <td className="p-3 text-center">
                             <span className="inline-flex items-center gap-1 bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 text-xs px-2 py-0.5 rounded-full">
                               <TrendingUp className="w-3 h-3" />{r.commissionOn}
@@ -207,7 +248,7 @@ export default function CommissionPage() {
                             {r.pendingIds.length > 0 ? (
                               <Button size="sm" variant="outline" className="h-7 text-xs"
                                 disabled={markPaidMutation.isPending}
-                                onClick={() => { r.pendingIds.forEach(id => markPaidMutation.mutate(id)); }}>
+                                onClick={() => { r.pendingIds.forEach((id: string) => markPaidMutation.mutate(id)); }}>
                                 Mark All Paid
                               </Button>
                             ) : (
@@ -221,47 +262,54 @@ export default function CommissionPage() {
                     </tbody>
                     <tfoot>
                       <tr className="border-t-2 bg-muted/20">
-                        <td className="p-3 font-bold text-xs uppercase text-muted-foreground">Total</td>
-                        <td></td>
-                        <td className="p-3 text-center font-bold">{rows.reduce((a,r)=>a+r.totalConverted,0)}</td>
-                        <td className="p-3 text-center font-bold">{rows.reduce((a,r)=>a+r.commissionOn,0)}</td>
-                        <td className="p-3 text-right font-bold text-green-600">₹{rows.reduce((a,r)=>a+r.total,0).toLocaleString("en-IN")}</td>
-                        <td className="p-3 text-right font-bold text-green-600">₹{rows.reduce((a,r)=>a+r.paid,0).toLocaleString("en-IN")}</td>
-                        <td className="p-3 text-right font-bold text-amber-500">₹{rows.reduce((a,r)=>a+r.pending,0).toLocaleString("en-IN")}</td>
+                        <td className="p-3 font-bold text-xs uppercase text-muted-foreground" colSpan={2}>Total</td>
+                        <td className="p-3 text-center font-bold">{rows.reduce((a: number, r: any) => a + r.commissionOn, 0)}</td>
+                        <td className="p-3 text-right font-bold text-green-600">₹{rows.reduce((a: number, r: any) => a + r.total, 0).toLocaleString("en-IN")}</td>
+                        <td className="p-3 text-right font-bold text-green-600">₹{rows.reduce((a: number, r: any) => a + r.paid, 0).toLocaleString("en-IN")}</td>
+                        <td className="p-3 text-right font-bold text-amber-500">₹{rows.reduce((a: number, r: any) => a + r.pending, 0).toLocaleString("en-IN")}</td>
                         <td></td>
                       </tr>
                     </tfoot>
                   </table>
                 );
               })() : (
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b bg-muted/30">
-                    <th className="text-left p-3 font-medium text-muted-foreground">Amount</th>
-                    <th className="text-left p-3 font-medium text-muted-foreground">Converted On</th>
-                    <th className="text-left p-3 font-medium text-muted-foreground">Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {commissions.map((c: any) => (
-                    <tr key={c.id} className="border-b hover:bg-muted/20 transition-colors">
-                      <td className="p-3 font-bold text-green-600">₹{c.amount?.toLocaleString("en-IN")}</td>
-                      <td className="p-3 text-muted-foreground">{formatDate(c.convertedAt)}</td>
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b bg-muted/30">
+                      <th className="text-left p-3 font-medium text-muted-foreground">Amount</th>
+                      <th className="text-left p-3 font-medium text-muted-foreground">Converted On</th>
+                      <th className="text-left p-3 font-medium text-muted-foreground">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filtered.map((c: any) => (
+                      <tr key={c.id} className="border-b hover:bg-muted/20 transition-colors">
+                        <td className="p-3 font-bold text-green-600">₹{c.amount?.toLocaleString("en-IN")}</td>
+                        <td className="p-3 text-muted-foreground">{formatDate(c.convertedAt)}</td>
+                        <td className="p-3">
+                          {c.paidStatus === "PAID" ? (
+                            <Badge variant="outline" className="text-green-600 border-green-200 bg-green-50 text-xs">
+                              <CheckCircle className="w-3 h-3 mr-1" />Paid
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="text-amber-600 border-amber-200 bg-amber-50 text-xs">
+                              <Clock className="w-3 h-3 mr-1" />Pending
+                            </Badge>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr className="border-t-2 bg-muted/20">
+                      <td className="p-3 font-bold text-green-600">₹{totalEarned.toLocaleString("en-IN")}</td>
+                      <td className="p-3 text-xs text-muted-foreground font-medium">Month Total</td>
                       <td className="p-3">
-                        {c.paidStatus === "PAID" ? (
-                          <Badge variant="outline" className="text-green-600 border-green-200 bg-green-50 text-xs">
-                            <CheckCircle className="w-3 h-3 mr-1" />Paid
-                          </Badge>
-                        ) : (
-                          <Badge variant="outline" className="text-amber-600 border-amber-200 bg-amber-50 text-xs">
-                            <Clock className="w-3 h-3 mr-1" />Pending
-                          </Badge>
-                        )}
+                        {totalPending > 0 && <span className="text-xs text-amber-500 font-medium">₹{totalPending.toLocaleString("en-IN")} pending</span>}
                       </td>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </tfoot>
+                </table>
               )}
             </div>
           )}
