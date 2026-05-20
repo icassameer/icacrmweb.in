@@ -1990,21 +1990,66 @@ Return ONLY valid JSON, no markdown, no explanation.`
     }
   });
 
-  // GET /api/rc-lookup — MASTER_ADMIN view all RC records across agencies
+  // GET /api/rc-lookup — MASTER_ADMIN view all RC records across agencies + APLM CRM
   app.get("/api/rc-lookup", authMiddleware, roleMiddleware("MASTER_ADMIN"), async (req: AuthRequest, res: Response) => {
     try {
       const agencyFilter = req.query.agency as string | undefined;
-      let records: any[];
-      if (agencyFilter) {
-        records = await storage.getRcRecordsByAgency(agencyFilter);
-      } else {
-        records = await storage.getAllRcRecords();
+      const platformFilter = req.query.platform as string | undefined; // "ica" | "aplm" | undefined = all
+
+      let records: any[] = [];
+
+      // ── ICA CRM records ──────────────────────────────────────────────
+      if (!platformFilter || platformFilter === "ica") {
+        const ownRecords = agencyFilter
+          ? await storage.getRcRecordsByAgency(agencyFilter)
+          : await storage.getAllRcRecords();
+        const allAgencies = await storage.getAllAgencies();
+        const agencyMap: Record<string, string> = {};
+        for (const a of allAgencies) { agencyMap[a.agencyCode] = a.name; }
+        records.push(...ownRecords.map((r: any) => ({
+          ...r,
+          agencyName: agencyMap[r.agencyCode] || r.agencyCode,
+          platform: "ICA CRM",
+        })));
       }
-      const allAgencies = await storage.getAllAgencies();
-      const agencyMap: Record<string, string> = {};
-      for (const a of allAgencies) { agencyMap[a.agencyCode] = a.name; }
-      const enriched = records.map((r: any) => ({ ...r, agencyName: agencyMap[r.agencyCode] || r.agencyCode }));
-      return res.json({ success: true, data: enriched });
+
+      // ── APLM CRM records (cross-DB) ──────────────────────────────────
+      if (!platformFilter || platformFilter === "aplm") {
+        try {
+          const crossDb = process.env.CROSS_DB_URL;
+          const client = new Client({ connectionString: crossDb });
+          await client.connect();
+
+          const rQuery = agencyFilter
+            ? "SELECT id, agency_code, rc_number, rc_data, looked_up_by, created_at FROM rc_records WHERE agency_code = $1 ORDER BY created_at DESC"
+            : "SELECT id, agency_code, rc_number, rc_data, looked_up_by, created_at FROM rc_records ORDER BY created_at DESC";
+          const rResult = await client.query(rQuery, agencyFilter ? [agencyFilter] : []);
+
+          const aResult = await client.query("SELECT agency_code, name FROM agencies");
+          await client.end();
+
+          const aplmAgencyMap: Record<string, string> = {};
+          for (const a of aResult.rows) { aplmAgencyMap[a.agency_code] = a.name; }
+
+          records.push(...rResult.rows.map((r: any) => ({
+            id: r.id,
+            agencyCode: r.agency_code,
+            rcNumber: r.rc_number,
+            rcData: r.rc_data,
+            lookedUpBy: r.looked_up_by,
+            createdAt: r.created_at,
+            agencyName: aplmAgencyMap[r.agency_code] || r.agency_code,
+            platform: "APLM CRM",
+          })));
+        } catch (crossErr) {
+          console.error("[rc-lookup-cross-db]", crossErr);
+        }
+      }
+
+      // Sort newest first
+      records.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+      return res.json({ success: true, data: records });
     } catch (error: any) {
       console.error(error);
       res.status(500).json({ success: false, message: "Internal server error" });
