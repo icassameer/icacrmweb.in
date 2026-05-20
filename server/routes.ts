@@ -2933,6 +2933,7 @@ ${businessContext4 ? `About this agency:\n${businessContext4}\n` : ""}${crmConte
       const updateData: any = {
         subscriptionStatus: "ACTIVE",
         subscriptionExpiry: newExpiry,
+        isActive: true,
       };
       if (plan) updateData.plan = plan.toUpperCase();
 
