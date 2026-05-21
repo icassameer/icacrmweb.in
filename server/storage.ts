@@ -51,7 +51,7 @@ export interface IStorage {
   updateLead(id: string, data: Partial<Lead>): Promise<Lead | undefined>;
   deleteLead(id: string): Promise<void>;
   countLeadsByAgency(agencyCode: string): Promise<number>;
-  getLeadStats(agencyCode: string, assignedTo?: string): Promise<Record<string, number>>;
+  getLeadStats(agencyCode: string, assignedTo?: string, teamLeaderId?: string): Promise<Record<string, number>>;
 
   createAuditLog(log: Omit<AuditLog, "id" | "createdAt">): Promise<AuditLog>;
   getAuditLogs(agencyCode: string, page: number, limit: number, leadId?: string): Promise<{ logs: AuditLog[]; total: number }>;
@@ -323,9 +323,10 @@ export class DatabaseStorage implements IStorage {
     return result.count;
   }
 
-  async getLeadStats(agencyCode: string, assignedTo?: string): Promise<Record<string, number>> {
+  async getLeadStats(agencyCode: string, assignedTo?: string, teamLeaderId?: string): Promise<Record<string, number>> {
     const conditions = [eq(leads.agencyCode, agencyCode)];
     if (assignedTo) conditions.push(eq(leads.assignedTo, assignedTo));
+    if (teamLeaderId) conditions.push(eq(leads.teamLeaderId, teamLeaderId));
     const where = and(...conditions);
     const result = await db.select({ status: leads.status, count: count() }).from(leads).where(where).groupBy(leads.status);
     const stats: Record<string, number> = { NEW: 0, CONTACTED: 0, FOLLOW_UP: 0, CONVERTED: 0, NOT_INTERESTED: 0 };

@@ -1334,7 +1334,8 @@ export async function registerRoutes(
       }
       if (!agencyCode) return res.status(400).json({ success: false, message: "No agency" });
       const assignedTo = req.user!.role === "TELE_CALLER" ? req.user!.id : undefined;
-      const stats = await storage.getLeadStats(agencyCode, assignedTo);
+      const teamLeaderId = req.user!.role === "TEAM_LEADER" ? req.user!.id : undefined;
+      const stats = await storage.getLeadStats(agencyCode, assignedTo, teamLeaderId);
       res.json({ success: true, data: stats });
     } catch (error: any) {
       console.error(error);
@@ -1770,9 +1771,14 @@ Return ONLY valid JSON, no markdown, no explanation.`
       if (!agencyCode) return res.status(400).json({ success: false, message: "No agency" });
 
       const agency = await storage.getAgencyByCode(agencyCode);
-      const stats = await storage.getLeadStats(agencyCode, req.user!.role === "TELE_CALLER" ? req.user!.id : undefined);
+
+      const tlId = req.user!.role === "TEAM_LEADER" ? req.user!.id : undefined;
+      const tcId = req.user!.role === "TELE_CALLER" ? req.user!.id : undefined;
+      const stats = await storage.getLeadStats(agencyCode, tcId, tlId);
       const totalLeads = Object.values(stats).reduce((a: number, b: number) => a + b, 0);
-      const userCount = await storage.countUsersByAgency(agencyCode);
+      const userCount = tlId
+        ? (await storage.getTelecallersByTeamLeader(tlId)).length + 1  // TCs + TL themselves
+        : await storage.countUsersByAgency(agencyCode);
 
       const extraData: any = { agency, leadStats: stats, totalLeads, userCount };
 
@@ -1793,10 +1799,11 @@ Return ONLY valid JSON, no markdown, no explanation.`
       }
 
       if (req.user!.role === "TEAM_LEADER") {
-        const teamUsers = await storage.getUsersByAgency(agencyCode);
-        const telecallers = teamUsers.filter(u => u.role === "TELE_CALLER" && u.status === "ACTIVE");
+        // Only TCs under THIS team leader
+        const myTelecallers = await storage.getTelecallersByTeamLeader(req.user!.id);
+        const activeTelecallers = myTelecallers.filter(u => u.status === "ACTIVE");
         const telecallerStats = await Promise.all(
-          telecallers.map(async (tc) => {
+          activeTelecallers.map(async (tc) => {
             const tcStats = await storage.getLeadStats(agencyCode, tc.id);
             return { name: tc.fullName, ...tcStats };
           })
