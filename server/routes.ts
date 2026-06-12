@@ -1545,10 +1545,12 @@ Return ONLY valid JSON (no markdown, no explanation, no preamble):
                   },
                   {
                     role: "user",
-                    content: `Meeting Title: ${title}\n\nRaw Transcript:\n${transcript.length > 5000 ? transcript.slice(0, 5000) + "\n\n[transcript truncated — only first portion sent for diarization]" : transcript}`
+                    content: `Meeting Title: ${title}\n\nRaw Transcript:\n${transcript.length > 20000 ? transcript.slice(0, 20000) + "\n\n[transcript truncated — only first portion sent for analysis]" : transcript}`
                   }
                 ],
-                temperature: 0.2,
+                temperature: 0,
+                seed: 42,
+                response_format: { type: "json_object" },
                 max_tokens: 8000,
               });
 
@@ -1648,7 +1650,9 @@ Return ONLY valid JSON, no markdown, no explanation.`
 
             { role: "user", content: `Meeting Title: ${title}\n\nTranscript (with speakers identified):\n${diarizedTranscript}` }
           ],
-          temperature: 0.3,
+          temperature: 0,
+          seed: 42,
+          response_format: { type: "json_object" },
         });
 
         const content = gptResponse.choices[0]?.message?.content || "{}";
