@@ -16,7 +16,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Users,
   Phone, Plus, ChevronLeft, ChevronRight, Filter, Search,
   UserCheck, Clock, CheckCircle2, XCircle, AlertCircle,
-  Upload, Download, Briefcase, Check, MessageCircle, TrendingUp, IndianRupee,
+  Upload, Download, Briefcase, Check, MessageCircle, TrendingUp, IndianRupee, RefreshCw,
 } from "lucide-react";
 
 const statusConfig: Record<string, { label: string; color: string; icon: any }> = {
@@ -25,6 +25,7 @@ const statusConfig: Record<string, { label: string; color: string; icon: any }> 
   FOLLOW_UP: { label: "Follow Up", color: "bg-chart-5 text-white dark:text-white", icon: Clock },
   CONVERTED: { label: "Converted", color: "bg-chart-4 text-white dark:text-white", icon: CheckCircle2 },
   NOT_INTERESTED: { label: "Not Interested", color: "bg-destructive text-destructive-foreground", icon: XCircle },
+  RENEWAL: { label: "Renewal", color: "bg-purple-600 text-white dark:text-white", icon: RefreshCw },
 };
 
 export default function LeadsPage() {
@@ -307,6 +308,7 @@ export default function LeadsPage() {
                 <SelectItem value="FOLLOW_UP">Follow Up</SelectItem>
                 <SelectItem value="CONVERTED">Converted</SelectItem>
                 <SelectItem value="NOT_INTERESTED">Not Interested</SelectItem>
+                <SelectItem value="RENEWAL">Renewal</SelectItem>
               </SelectContent>
             </Select>
           )}
@@ -764,6 +766,7 @@ export default function LeadsPage() {
                       <SelectItem value="CONVERTED">Converted</SelectItem>
                       <SelectItem value="FOLLOW_UP">Follow Up</SelectItem>
                       <SelectItem value="NOT_INTERESTED">Not Interested</SelectItem>
+                      <SelectItem value="RENEWAL">Renewal</SelectItem>
                     </>
                   ) : (
                     <>
@@ -772,6 +775,7 @@ export default function LeadsPage() {
                       <SelectItem value="FOLLOW_UP">Follow Up</SelectItem>
                       <SelectItem value="CONVERTED">Converted</SelectItem>
                       <SelectItem value="NOT_INTERESTED">Not Interested</SelectItem>
+                      <SelectItem value="RENEWAL">Renewal</SelectItem>
                     </>
                   )}
                 </SelectContent>
