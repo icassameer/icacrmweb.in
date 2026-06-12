@@ -77,7 +77,8 @@ export interface IStorage {
   getUpgradeRequest(id: string): Promise<UpgradeRequest | undefined>;
 
   createRcRecord(record: InsertRcRecord): Promise<RcRecord>;
-  getRcRecordsByAgency(agencyCode: string): Promise<RcRecord[]>;
+  getRcRecordsByAgency(agencyCode: string, month?: string): Promise<RcRecord[]>;
+  getRcAvailableMonths(agencyCode: string): Promise<string[]>;
   getAllRcRecords(): Promise<RcRecord[]>;
   deleteRcRecord(id: string): Promise<void>;
   getRcRecordByNumber(agencyCode: string, rcNumber: string): Promise<RcRecord | undefined>;
@@ -626,8 +627,24 @@ export class DatabaseStorage implements IStorage {
     return created;
   }
 
-  async getRcRecordsByAgency(agencyCode: string): Promise<RcRecord[]> {
-    return db.select().from(rcRecords).where(eq(rcRecords.agencyCode, agencyCode)).orderBy(desc(rcRecords.createdAt)).limit(50);
+  async getRcRecordsByAgency(agencyCode: string, month?: string): Promise<RcRecord[]> {
+    if (month) {
+      // month = "YYYY-MM" — filter to that calendar month
+      const [year, mon] = month.split("-").map(Number);
+      const from = new Date(year, mon - 1, 1);
+      const to = new Date(year, mon, 1); // first day of next month (exclusive)
+      return db.select().from(rcRecords).where(
+        and(eq(rcRecords.agencyCode, agencyCode), sql`${rcRecords.createdAt} >= ${from} AND ${rcRecords.createdAt} < ${to}`)
+      ).orderBy(desc(rcRecords.createdAt));
+    }
+    return db.select().from(rcRecords).where(eq(rcRecords.agencyCode, agencyCode)).orderBy(desc(rcRecords.createdAt)).limit(200);
+  }
+
+  async getRcAvailableMonths(agencyCode: string): Promise<string[]> {
+    const rows = await db.execute(
+      sql`SELECT DISTINCT TO_CHAR(created_at, 'YYYY-MM') AS month FROM rc_records WHERE agency_code = ${agencyCode} ORDER BY month DESC`
+    );
+    return (rows.rows as any[]).map((r) => r.month as string);
   }
 
   async getAllRcRecords(): Promise<RcRecord[]> {

@@ -32,6 +32,9 @@ export default function RCLookupPage() {
   const [loading, setLoading] = useState(false);
   const [agencyFilter, setAgencyFilter] = useState("all");
   const [platformFilter, setPlatformFilter] = useState("all");
+  const now = new Date();
+  const defaultMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  const [selectedMonth, setSelectedMonth] = useState(defaultMonth);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [addLeadOpen, setAddLeadOpen] = useState(false);
   const [leadForm, setLeadForm] = useState({ name: "", phone: "", remarks: "", teamLeaderId: "" });
@@ -46,7 +49,7 @@ export default function RCLookupPage() {
   const agencyList = agencies?.data || [];
 
   const recordsUrl = (() => {
-    if (!isMasterAdmin) return "/api/rc-records";
+    if (!isMasterAdmin) return `/api/rc-records?month=${selectedMonth}`;
     const params = new URLSearchParams();
     if (agencyFilter !== "all") params.set("agency", agencyFilter);
     if (platformFilter !== "all") params.set("platform", platformFilter);
@@ -100,7 +103,7 @@ const subscriptionLoaded = !isMasterAdmin ? (!recordsLoading && !recordsFetching
       const data = await res.json();
       if (data.success) {
         setResult(data.data);
-        queryClient.invalidateQueries({ queryKey: ["/api/rc-records"] });
+        queryClient.invalidateQueries({ queryKey: [`/api/rc-records?month=${selectedMonth}`] });
         toast({ title: "RC details fetched successfully!" });
       } else {
         toast({ title: "Lookup failed", description: data.message, variant: "destructive" });
@@ -194,6 +197,13 @@ const subscriptionLoaded = !isMasterAdmin ? (!recordsLoading && !recordsFetching
       setAddLeadLoading(false);
     }
   };
+  const availableMonths: string[] = savedRecords?.meta?.availableMonths || [defaultMonth];
+
+  const formatMonth = (ym: string) => {
+    const [y, m] = ym.split("-");
+    return new Date(Number(y), Number(m) - 1, 1).toLocaleDateString("en-IN", { month: "long", year: "numeric" });
+  };
+
   const r = result;
   const records = (savedRecords?.data || []).sort((a: any, b: any) => {
     const now = Date.now();
@@ -486,9 +496,21 @@ Team ICA
         </div>
       )}
       <div>
-        <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
-          <Clock className="w-5 h-5 text-muted-foreground" /> Previously Looked Up
-        </h2>
+        <div className="flex items-center justify-between flex-wrap gap-3 mb-3">
+          <h2 className="text-lg font-semibold flex items-center gap-2">
+            <Clock className="w-5 h-5 text-muted-foreground" /> Previously Looked Up
+          </h2>
+          <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+            <SelectTrigger className="w-44">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {availableMonths.map((m) => (
+                <SelectItem key={m} value={m}>{formatMonth(m)}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
         {recordsLoading ? (
           <div className="space-y-2">{[1,2,3].map(i => <Skeleton key={i} className="h-16 w-full" />)}</div>
         ) : records.length > 0 ? (
