@@ -165,7 +165,7 @@ export async function registerRoutes(
         const agency = await storage.getAgencyByCode(user.agencyCode);
         if (agency && !agency.isActive) return res.status(403).json({ success: false, message: "Agency is deactivated" });
         if (agency?.subscriptionExpiry && new Date() > new Date(agency.subscriptionExpiry)) {
-          return res.status(403).json({ success: false, message: "Subscription expired. Please renew your plan to continue." });
+          return res.status(403).json({ success: false, message: "Subscription expired. Please renew your plan to continue.", agencyCode: user.agencyCode });
         }
       }
 

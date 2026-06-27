@@ -11,6 +11,7 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [deactivated, setDeactivated] = useState(false);
+  const [expiredAgencyCode, setExpiredAgencyCode] = useState<string | null>(null);
   const [signupLoading, setSignupLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<"login" | "signup">("login");
   const { login } = useAuth();
@@ -100,14 +101,27 @@ export default function LoginPage() {
     if (loading) return;
     setLoading(true);
     try {
+      // Call API directly first to capture agencyCode on subscription-expired errors
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: loginForm.username, password: loginForm.password }),
+      });
+      const data = await res.json();
+      if (!data.success) {
+        if (data.message?.includes("deactivated") || data.message?.includes("inactive") || data.message?.includes("expired")) {
+          setExpiredAgencyCode(data.agencyCode || null);
+          setDeactivated(true);
+        } else {
+          toast({ title: "Login Failed", description: data.message, variant: "destructive" });
+        }
+        setLoading(false);
+        return;
+      }
       await login(loginForm.username, loginForm.password);
       setTimeout(() => setLocation("/"), 100);
     } catch (err: any) {
-      if (err.message?.includes("deactivated") || err.message?.includes("inactive")) {
-        setDeactivated(true);
-      } else {
-        toast({ title: "Login Failed", description: err.message, variant: "destructive" });
-      }
+      toast({ title: "Login Failed", description: err.message, variant: "destructive" });
       setLoading(false);
     }
   };
@@ -234,17 +248,23 @@ export default function LoginPage() {
                   <span style={{fontSize:"28px"}}>🔴</span>
                 </div>
                 <h3 style={{margin:"0 0 8px",fontSize:"18px",fontWeight:700,color:"#fff"}}>Subscription Expired</h3>
+                {expiredAgencyCode && (
+                  <div style={{display:"inline-block",background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.15)",borderRadius:"8px",padding:"4px 12px",marginBottom:"10px"}}>
+                    <span style={{fontSize:"11px",color:"rgba(255,255,255,0.4)",letterSpacing:"0.05em",textTransform:"uppercase"}}>Agency Code</span>
+                    <p style={{margin:0,fontSize:"15px",fontWeight:700,color:"#fff",letterSpacing:"0.05em",fontFamily:"monospace"}}>{expiredAgencyCode}</p>
+                  </div>
+                )}
                 <p style={{margin:"0 0 20px",fontSize:"13px",color:"rgba(255,255,255,0.5)",lineHeight:1.6}}>Your agency subscription has expired. Renew now to restore access for your entire team.</p>
                 <a href="https://icaweb.in/#pricing" target="_blank" rel="noopener noreferrer"
                   style={{display:"block",width:"100%",padding:"13px",borderRadius:"10px",background:"linear-gradient(135deg,#dc2626,#ef4444)",color:"#fff",fontWeight:700,fontSize:"14px",textDecoration:"none",textAlign:"center",marginBottom:"12px",boxSizing:"border-box"}}>
                   🔄 Renew Subscription Now
                 </a>
-                <a href="https://wa.me/919967969850?text=Hi+Sameer%2C+my+agency+subscription+expired.+Please+help+me+renew."
+                <a href={`https://wa.me/919967969850?text=${encodeURIComponent(`Hi Sameer, my agency subscription has expired. Agency Code: ${expiredAgencyCode || "N/A"}. Please help me renew.`)}`}
                   target="_blank" rel="noopener noreferrer"
                   style={{display:"block",width:"100%",padding:"11px",borderRadius:"10px",background:"rgba(37,211,102,0.15)",border:"1px solid rgba(37,211,102,0.3)",color:"#25d366",fontWeight:600,fontSize:"13px",textDecoration:"none",textAlign:"center",marginBottom:"16px",boxSizing:"border-box"}}>
                   📲 WhatsApp Sameer to Renew
                 </a>
-                <button onClick={()=>setDeactivated(false)} style={{background:"none",border:"none",color:"rgba(255,255,255,0.35)",fontSize:"12px",cursor:"pointer",textDecoration:"underline"}}>
+                <button onClick={()=>{ setDeactivated(false); setExpiredAgencyCode(null); }} style={{background:"none",border:"none",color:"rgba(255,255,255,0.35)",fontSize:"12px",cursor:"pointer",textDecoration:"underline"}}>
                   ← Back to Login
                 </button>
               </div>
