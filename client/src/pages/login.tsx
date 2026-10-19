@@ -248,12 +248,10 @@ export default function LoginPage() {
                   <span style={{fontSize:"28px"}}>🔴</span>
                 </div>
                 <h3 style={{margin:"0 0 8px",fontSize:"18px",fontWeight:700,color:"#fff"}}>Subscription Expired</h3>
-                {expiredAgencyCode && (
-                  <div style={{display:"inline-block",background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.15)",borderRadius:"8px",padding:"4px 12px",marginBottom:"10px"}}>
-                    <span style={{fontSize:"11px",color:"rgba(255,255,255,0.4)",letterSpacing:"0.05em",textTransform:"uppercase"}}>Agency Code</span>
-                    <p style={{margin:0,fontSize:"15px",fontWeight:700,color:"#fff",letterSpacing:"0.05em",fontFamily:"monospace"}}>{expiredAgencyCode}</p>
-                  </div>
-                )}
+                <div style={{display:"inline-block",background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.15)",borderRadius:"8px",padding:"4px 12px",marginBottom:"10px"}}>
+                  <span style={{fontSize:"11px",color:"rgba(255,255,255,0.4)",letterSpacing:"0.05em",textTransform:"uppercase"}}>Agency Code</span>
+                  <p style={{margin:0,fontSize:"15px",fontWeight:700,color:"#fff",letterSpacing:"0.05em",fontFamily:"monospace"}}>{expiredAgencyCode || "N/A"}</p>
+                </div>
                 <p style={{margin:"0 0 20px",fontSize:"13px",color:"rgba(255,255,255,0.5)",lineHeight:1.6}}>Your agency subscription has expired. Renew now to restore access for your entire team.</p>
                 <a href="https://icaweb.in/#pricing" target="_blank" rel="noopener noreferrer"
                   style={{display:"block",width:"100%",padding:"13px",borderRadius:"10px",background:"linear-gradient(135deg,#dc2626,#ef4444)",color:"#fff",fontWeight:700,fontSize:"14px",textDecoration:"none",textAlign:"center",marginBottom:"12px",boxSizing:"border-box"}}>
