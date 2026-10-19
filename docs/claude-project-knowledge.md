@@ -38,7 +38,7 @@ Last updated: 2026-10-19. This file mirrors Claude Code's workspace memory on th
 | 2026-10-19 | Health check: site, APIs, database and cron all OK. This is the only agency in the database, and the last lead activity was on 2026-05-21. |
 
 ## Open follow-ups
-- [ ] Revoke the old GitHub personal access token on GitHub. The server now uses an SSH deploy key instead.
+- [x] Revoked the old GitHub personal access token. Both repos on the server (icacrmweb.in, aplm) now use their own SSH deploy keys. Done 2026-10-19.
 - [ ] Return 400 instead of logging an error for bot-noise requests: malformed URLs, CORS rejections and bad JSON.
 - [ ] Update `deploy.sh` to use `master` and the fork-mode PM2 setup.
 - [ ] Confirm that SSL auto-renewal is set up before 2026-12-03.
