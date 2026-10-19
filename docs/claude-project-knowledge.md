@@ -24,13 +24,14 @@ Last updated: 2026-10-19. This file mirrors Claude Code's workspace memory on th
 ## Hosting and deploy
 - One VPS at 203.174.22.119, app folder `/var/www/ica-crm`. nginx handles TLS and proxies to PM2 process `ica-crm` on port 5000.
 - The same server also runs `aplm-crm` (port 5001), `ica-pulse-api` (FastAPI) and PostgreSQL.
-- To deploy: back up `dist/`, run `npm run build`, then `pm2 restart ica-crm`.
-- `deploy.sh` is out of date. It pulls `main` instead of `master`, and it uses cluster mode, which doesn't match how the app runs now.
-- The SSL certificates expire around 2026-12-03.
+- To deploy, run `./deploy.sh` on the server. It pulls `master`, builds, restarts and health-checks the app, and rolls back automatically if anything fails. Use `./deploy.sh --no-pull` to deploy local changes that aren't pushed yet.
+- GitHub access from the server uses SSH deploy keys, one per repo. No tokens are stored on the server.
+- SSL: Cloudflare sits in front and renews its own certificate. The server's certificates are renewed automatically by certbot, which runs twice a day.
 
 ## Operations log
 | Date | Event |
 |---|---|
+| 2026-10-19 | Rewrote `deploy.sh` (safe one-command deploy with rollback). Bot requests (malformed URLs, bad JSON, foreign origins) now get 400/403 and no longer fill the error log. Confirmed SSL auto-renewal works. |
 | 2026-10-19 | Fixed `/api/addons/balance`. Its validation rejected hyphenated agency codes, so the add-on balance never loaded. It now accepts them, requires login, and only returns the user's own agency. Deployed, committed and pushed. |
 | 2026-10-19 | Server now pushes to GitHub with an SSH deploy key. The plain-text token was removed from the git config, and the 11 unpushed commits are now on GitHub. |
 | 2026-10-19 | Deployed the Subscription Expired screen change: the Agency Code box always shows, with "N/A" when there is no code. |
@@ -39,6 +40,8 @@ Last updated: 2026-10-19. This file mirrors Claude Code's workspace memory on th
 
 ## Open follow-ups
 - [x] Revoked the old GitHub personal access token. Both repos on the server (icacrmweb.in, aplm) now use their own SSH deploy keys. Done 2026-10-19.
-- [ ] Return 400 instead of logging an error for bot-noise requests: malformed URLs, CORS rejections and bad JSON.
-- [ ] Update `deploy.sh` to use `master` and the fork-mode PM2 setup.
-- [ ] Confirm that SSL auto-renewal is set up before 2026-12-03.
+- [x] Quieted bot noise in the error log. Done 2026-10-19.
+- [x] Fixed `deploy.sh`. Done 2026-10-19.
+- [x] Confirmed SSL auto-renewal. Done 2026-10-19.
+- [ ] Optional: split the 1 MB frontend bundle (code-splitting) for faster first load.
+- [ ] Find the cause of the one-off `POST /api/meetings` 500 error, if it happens again.
