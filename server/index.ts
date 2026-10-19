@@ -67,7 +67,7 @@ app.use(
   cors({
     origin: (origin, callback) => {
       if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
-      callback(new Error("Not allowed by CORS"));
+      callback(Object.assign(new Error("Not allowed by CORS"), { status: 403 }));
     },
     credentials: true,
     methods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
@@ -163,7 +163,8 @@ app.use((req, res, next) => {
 
   app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
-    console.error("Internal Server Error:", err);
+    // 4xx here are client/bot noise (bad URL encoding, malformed JSON, foreign origins) — don't log stack traces
+    if (status >= 500) console.error("Internal Server Error:", err);
     if (res.headersSent) return next(err);
     const message =
       process.env.NODE_ENV === "production" && status >= 500
