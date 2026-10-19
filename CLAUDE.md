@@ -32,6 +32,12 @@ Built exclusively for **Indian insurance agencies**. A white-label fork, **APLM 
 - **Cloud / web sessions** (claude.ai/code) have no access to the server, database or logs. Work on a branch and open a PR to `master`. The owner merges it and runs `./deploy.sh` on the server.
 - **Server sessions** (VS Code on the VPS) may run the build, query the DB and deploy, but confirm with the owner before deploying or changing production data.
 
+## Working rules (from the owner)
+- **Never edit or deploy blindly.** Read the current file first, make a minimal surgical change, verify it (build, curl the endpoint), and confirm with the owner before deploying to production.
+- Release rhythm: build → restart only the affected PM2 app → check its PM2 logs → commit with a descriptive message → tag milestone versions (e.g. `v9.8.6`).
+- Commands for the owner to run go in the SSH session on the server (VS Code terminal), never local Windows PowerShell. For multi-line edits they paste, use a small `/tmp/fix_*.py` script instead of heredocs or sed with special characters. Delete the script afterwards.
+- **APLM fork sync:** change and test ICA first, then port to APLM by hand after diffing. Never copy `login.tsx` or `app-sidebar.tsx` (APLM branding), and never overwrite APLM's `routes.ts` (it has APLM-specific values such as RC limit 100).
+
 ## Security rules
 - Never commit or write secrets anywhere: `.env` values, tokens, passwords, DB URLs. Refer to env vars by name only.
 - GitHub access from the server uses per-repo SSH deploy keys (host aliases `github-icacrm`, `github-aplm`). Never put tokens in remote URLs.
