@@ -31,14 +31,14 @@ Last updated: 2026-10-19. This file mirrors Claude Code's workspace memory on th
 ## Operations log
 | Date | Event |
 |---|---|
-| 2026-10-19 | Fixed `/api/addons/balance`. Its validation rejected hyphenated agency codes, so the add-on balance never loaded. It now accepts them, requires login, and only returns the user's own agency. Deployed, not yet committed. |
+| 2026-10-19 | Fixed `/api/addons/balance`. Its validation rejected hyphenated agency codes, so the add-on balance never loaded. It now accepts them, requires login, and only returns the user's own agency. Deployed, committed and pushed. |
+| 2026-10-19 | Server now pushes to GitHub with an SSH deploy key. The plain-text token was removed from the git config, and the 11 unpushed commits are now on GitHub. |
 | 2026-10-19 | Deployed the Subscription Expired screen change: the Agency Code box always shows, with "N/A" when there is no code. |
 | 2026-10-19 | Extended the subscription for agency ICA-N9ZYQZ (admin user Sam) by 365 days. Status is ACTIVE until 2027-10-19 and an audit log entry was written. It had been expired since 2026-07-27. |
 | 2026-10-19 | Health check: site, APIs, database and cron all OK. This is the only agency in the database, and the last lead activity was on 2026-05-21. |
 
 ## Open follow-ups
-- [ ] Revoke the GitHub token embedded in the server's git remote URL, then switch to an SSH deploy key or a credential helper.
-- [ ] Commit the 2026-10-19 fixes to `master`.
+- [ ] Revoke the old GitHub personal access token on GitHub. The server now uses an SSH deploy key instead.
 - [ ] Return 400 instead of logging an error for bot-noise requests: malformed URLs, CORS rejections and bad JSON.
 - [ ] Update `deploy.sh` to use `master` and the fork-mode PM2 setup.
 - [ ] Confirm that SSL auto-renewal is set up before 2026-12-03.
