@@ -7,7 +7,7 @@ Multi-tenant SaaS CRM for insurance/sales agencies, live at https://crm.icaweb.i
 - `server/routes.ts`: Express 5, and almost the whole API in one large file. `server/index.ts` handles app setup, CORS, the error handler and the daily cron. `server/storage.ts` holds the DB access layer.
 - `shared/schema.ts`: Drizzle ORM tables and enums (PostgreSQL 16). Read this first for the data model.
 - Integrations: Razorpay (subscriptions and add-on credits via webhooks), OpenAI, Sarvam, Anthropic, Resend email, and an external RC (vehicle registration) lookup API.
-- `*.bak*` files are old manual backups. Ignore them and never edit them.
+- Don't create `*.bak*` copies of files (they're gitignored). Use git commits or branches instead.
 
 ## Domain rules
 - Tenancy is by `agency_code` (format `ICA-XXXXXX`, **contains a hyphen**). Users link to agencies by `agency_code`; there is no `agency_id`. Any validation of agency codes must allow `-`.
