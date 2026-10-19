@@ -40,3 +40,6 @@ replit.nix
 .env.save*
 *.bak
 .deploy-backup
+
+# manual backup copies — use git history instead
+*.bak*
