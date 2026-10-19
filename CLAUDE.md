@@ -2,6 +2,8 @@
 
 Multi-tenant SaaS CRM for insurance/sales agencies, live at https://crm.icaweb.in (marketing site: icaweb.in). Owner: Sameer, ICA (Innovation, Consulting & Automation).
 
+Built exclusively for **Indian insurance agencies**. A white-label fork, **APLM CRM** (crm.aplmsales.com, separate repo `icassameer/aplm`), runs for a client with its own branding and RC limit (100/month on ENTERPRISE). When fixing a shared feature, note whether the APLM fork needs the same change.
+
 ## Stack and layout
 - `client/src/`: React 18, Vite 7, wouter routing, TanStack Query. Pages are in `client/src/pages/`.
 - `server/routes.ts`: Express 5, and almost the whole API in one large file. `server/index.ts` handles app setup, CORS, the error handler and the daily cron. `server/storage.ts` holds the DB access layer.

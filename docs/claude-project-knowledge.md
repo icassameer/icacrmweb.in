@@ -38,6 +38,21 @@ Last updated: 2026-10-19. This file mirrors Claude Code's workspace memory on th
 | 2026-10-19 | Extended the subscription for agency ICA-N9ZYQZ (admin user Sam) by 365 days. Status is ACTIVE until 2027-10-19 and an audit log entry was written. It had been expired since 2026-07-27. |
 | 2026-10-19 | Health check: site, APIs, database and cron all OK. This is the only agency in the database, and the last lead activity was on 2026-05-21. |
 
+## Business context
+- Target market: Indian insurance agencies. Planned pricing range is ₹2,500–₹12,000.
+- APLM CRM is a white-label fork for client APLM (Ashutosh Sales and Marketing Pvt. Ltd.) with its own branding and an RC limit of 100/month on ENTERPRISE.
+- Sales process: telecallers only book demos. Sam runs demos and closes deals. The Sales Executive never offers discounts on their own.
+- RC lookup provider: Surepass (rc-full endpoint).
+- Azure migration is deferred until there are about 10+ agency clients or enterprise uptime needs.
+
+## Roadmap (pending)
+- WhatsApp integration via WhatsAssure BSP: `agency_whatsapp_settings` and `whatsapp_messages` tables, plus a `server/whatsapp.ts` service. Not started.
+- Sarvam Batch API for audio over 30 seconds, with built-in diarization.
+- icaweb.in multi-page redesign (/about, /features, /pricing, /contact), staged in icaweb-in-v2.
+- /insurance-crm SEO landing page with SoftwareApplication JSON-LD.
+- aplmsales.com full website. Resend domain verification for aplmsales.com. ImprovMX for support@icaweb.in.
+- VPS DNS fix (1.1.1.1 / 8.8.8.8 plus IPv4 precedence). SSH key login for VS Code Remote SSH.
+
 ## Open follow-ups
 - [x] Revoked the old GitHub personal access token. Both repos on the server (icacrmweb.in, aplm) now use their own SSH deploy keys. Done 2026-10-19.
 - [x] Quieted bot noise in the error log. Done 2026-10-19.
